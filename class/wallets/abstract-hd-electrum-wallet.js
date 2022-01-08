@@ -36,6 +36,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
    * @inheritDoc
    */
   getBalance() {
+
     let ret = 0;
     for (const bal of Object.values(this._balances_by_external_index)) {
       ret += bal.c;
@@ -392,6 +393,10 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     }
 
     if (txs.length === 0) return []; // guard clause; so we wont spend time calculating addresses
+
+    //alert("secret:"+this.secret);
+    //alert(this._getSeed().toString('hex'));
+    console.log("seed : "+this._getSeed().toString('hex'));
 
     // its faster to pre-build hashmap of owned addresses than to query `this.weOwnAddress()`, which in turn
     // iterates over all addresses in hierarchy

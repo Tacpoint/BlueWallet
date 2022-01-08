@@ -58,6 +58,17 @@ const AddressItem = ({ item, balanceUnit, walletID, allowSignVerifyMessage }) =>
     });
   };
 
+  const navigateToAddPubKeys = () => {
+    menuRef.current?.dismissMenu();
+    navigate('AddPubKeysRoot', {
+      screen: 'AddPubKeys',
+      params: {
+        walletID,
+        address: item.address,
+      },
+    });
+  };
+
   const balance = formatBalance(item.balance, balanceUnit, true);
 
   const handleCopyPress = () => {

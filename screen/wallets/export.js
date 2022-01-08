@@ -45,6 +45,11 @@ const WalletExport = () => {
   const { goBack } = useNavigation();
   const { colors } = useTheme();
   const wallet = wallets.find(w => w.getID() === walletID);
+
+
+  console.log("export - secret : "+wallet.getSecret());
+  console.log("export - id : "+wallet.getID());
+
   const [qrCodeSize, setQRCodeSize] = useState(90);
   const stylesHook = {
     ...styles,
@@ -96,6 +101,8 @@ const WalletExport = () => {
 
   // for SLIP39 we need to show all shares
   let secrets = wallet.getSecret();
+
+
   if (typeof secrets === 'string') {
     secrets = [secrets];
   }

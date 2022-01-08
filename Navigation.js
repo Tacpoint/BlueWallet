@@ -25,8 +25,10 @@ import DefaultView from './screen/settings/defaultView';
 import WalletsList from './screen/wallets/list';
 import WalletTransactions from './screen/wallets/transactions';
 import AddWallet from './screen/wallets/add';
+import WalletsAddTaproot from './screen/wallets/addTaproot';
 import WalletsAddMultisig from './screen/wallets/addMultisig';
 import WalletsAddMultisigStep2 from './screen/wallets/addMultisigStep2';
+import WalletsAddTaprootStep2 from './screen/wallets/addTaprootStep2';
 import WalletsAddMultisigHelp from './screen/wallets/addMultisigHelp';
 import PleaseBackup from './screen/wallets/pleaseBackup';
 import PleaseBackupLNDHub from './screen/wallets/pleaseBackupLNDHub';
@@ -41,6 +43,7 @@ import ExportMultisigCoordinationSetup from './screen/wallets/exportMultisigCoor
 import ViewEditMultisigCosigners from './screen/wallets/viewEditMultisigCosigners';
 import WalletXpub from './screen/wallets/xpub';
 import SignVerify from './screen/wallets/signVerify';
+import AddPubKeys from './screen/wallets/addPubKeys';
 import WalletAddresses from './screen/wallets/addresses';
 import BuyBitcoin from './screen/wallets/buyBitcoin';
 import HodlHodl from './screen/wallets/hodlHodl';
@@ -194,6 +197,11 @@ const AddWalletRoot = () => {
       <AddWalletStack.Screen name="PleaseBackupLdk" component={PleaseBackupLdk} options={PleaseBackupLdk.navigationOptions(theme)} />
       <AddWalletStack.Screen name="ProvideEntropy" component={ProvideEntropy} options={ProvideEntropy.navigationOptions(theme)} />
       <AddWalletStack.Screen
+        name="WalletsAddTaproot"
+        component={WalletsAddTaproot}
+        options={WalletsAddTaproot.navigationOptions(theme)}
+      />
+      <AddWalletStack.Screen
         name="WalletsAddMultisig"
         component={WalletsAddMultisig}
         options={WalletsAddMultisig.navigationOptions(theme)}
@@ -202,6 +210,11 @@ const AddWalletRoot = () => {
         name="WalletsAddMultisigStep2"
         component={WalletsAddMultisigStep2}
         options={WalletsAddMultisigStep2.navigationOptions(theme)}
+      />
+      <AddWalletStack.Screen
+        name="WalletsAddTaprootStep2"
+        component={WalletsAddTaprootStep2}
+        options={WalletsAddTaprootStep2.navigationOptions(theme)}
       />
       <AddWalletStack.Screen
         name="WalletsAddMultisigHelp"
@@ -407,6 +420,17 @@ const SignVerifyStackRoot = () => {
   );
 };
 
+const AddPubKeysStack = createNativeStackNavigator();
+const AddPubKeysStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <AddPubKeysStack.Navigator name="AddPubKeysRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="AddPubKeys">
+      <AddPubKeysStack.Screen name="AddPubKeys" component={AddPubKeys} options={AddPubKeys.navigationOptions(theme)} />
+    </AddPubKeysStack.Navigator>
+  );
+};
+
 const WalletExportStack = createNativeStackNavigator();
 const WalletExportStackRoot = () => {
   const theme = useTheme();
@@ -525,6 +549,7 @@ const Navigation = () => {
       <RootStack.Screen name="ViewEditMultisigCosignersRoot" component={ViewEditMultisigCosignersRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="WalletXpubRoot" component={WalletXpubStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="SignVerifyRoot" component={SignVerifyStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="AddPubKeysRoot" component={AddPubKeysStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="BuyBitcoin" component={BuyBitcoin} options={BuyBitcoin.navigationOptions(theme)} />
       <RootStack.Screen name="Marketplace" component={Marketplace} options={Marketplace.navigationOptions(theme)} />
       <RootStack.Screen name="SelectWallet" component={SelectWallet} />

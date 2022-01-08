@@ -19,6 +19,7 @@ import {
   LightningButton,
   BitcoinButton,
   VaultButton,
+  TaprootButton,
   BlueFormLabel,
   BlueButton,
   BlueButtonLink,
@@ -46,6 +47,7 @@ const ButtonSelected = Object.freeze({
   ONCHAIN: Chain.ONCHAIN,
   OFFCHAIN: Chain.OFFCHAIN,
   VAULT: 'VAULT',
+  TAPROOT: 'TAPROOT',
   LDK: 'LDK',
 });
 
@@ -113,8 +115,10 @@ const WalletsAdd = () => {
   };
 
   const createWallet = async () => {
+
     setIsLoading(true);
 
+    console.log("In add.js createWallet ...");
     let w;
 
     if (selectedWalletType === ButtonSelected.OFFCHAIN) {
@@ -153,6 +157,7 @@ const WalletsAdd = () => {
         A(A.ENUM.CREATED_WALLET);
         ReactNativeHapticFeedback.trigger('notificationSuccess', { ignoreAndroidSystemSettings: false });
         if (w.type === HDSegwitP2SHWallet.type || w.type === HDSegwitBech32Wallet.type) {
+
           navigate('PleaseBackup', {
             walletID: w.getID(),
           });
@@ -163,6 +168,11 @@ const WalletsAdd = () => {
     } else if (selectedWalletType === ButtonSelected.VAULT) {
       setIsLoading(false);
       navigate('WalletsAddMultisig', { walletLabel: label.trim().length > 0 ? label : loc.multisig.default_label });
+    } else if (selectedWalletType === ButtonSelected.TAPROOT) {
+      console.log("Calling WalletsAddTaproot ...");
+
+      setIsLoading(false);
+      navigate('WalletsAddTaproot', { walletLabel: label.trim().length > 0 ? label : loc.taproot.default_label });
     } else if (selectedWalletType === ButtonSelected.LDK) {
       setIsLoading(false);
       createLightningLdkWallet(w);
@@ -239,6 +249,11 @@ const WalletsAdd = () => {
     setSelectedWalletType(ButtonSelected.VAULT);
   };
 
+  const handleOnTaprootButtonPressed = () => {
+    Keyboard.dismiss();
+    setSelectedWalletType(ButtonSelected.TAPROOT);
+  };
+
   const handleOnBitcoinButtonPressed = () => {
     Keyboard.dismiss();
     setSelectedWalletType(ButtonSelected.ONCHAIN);
@@ -300,6 +315,7 @@ const WalletsAdd = () => {
             />
           ) : null}
           <VaultButton active={selectedWalletType === ButtonSelected.VAULT} onPress={handleOnVaultButtonPressed} style={styles.button} />
+          <TaprootButton active={selectedWalletType === ButtonSelected.TAPROOT} onPress={handleOnTaprootButtonPressed} style={styles.button} />
         </View>
 
         <View style={styles.advanced}>
@@ -365,6 +381,8 @@ const WalletsAdd = () => {
           <BlueSpacing20 />
           <View style={styles.createButton}>
             {!isLoading ? (
+
+
               <BlueButton
                 testID="Create"
                 title={loc.wallets.add_create}
