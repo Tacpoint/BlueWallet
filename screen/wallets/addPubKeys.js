@@ -25,7 +25,7 @@ import { BlueStorageContext } from '../../blue_modules/storage-context';
 import loc from '../../loc';
 import confirm from '../../helpers/confirm';
 
-const SignVerify = () => {
+const AddPubKeys = () => {
   const { colors } = useTheme();
   const { wallets, sleep } = useContext(BlueStorageContext);
   const { params } = useRoute();
@@ -151,7 +151,7 @@ const SignVerify = () => {
           {!isKeyboardVisible && (
             <>
               <BlueSpacing20 />
-              <BlueFormLabel>{loc.addresses.sign_help}</BlueFormLabel>
+              <BlueFormLabel>{loc.addresses.add_pubs_help}</BlueFormLabel>
               <BlueSpacing20 />
             </>
           )}
@@ -160,7 +160,7 @@ const SignVerify = () => {
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.sign_placeholder_address}
+            placeholder={loc.addresses.add_pubs_placeholder_address}
             placeholderTextColor="#81868e"
             value={address}
             onChangeText={t => setAddress(t.replace('\n', ''))}
@@ -177,7 +177,7 @@ const SignVerify = () => {
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.sign_placeholder_signature}
+            placeholder={loc.addresses.add_pubs_placeholder_signature}
             placeholderTextColor="#81868e"
             value={signature}
             onChangeText={t => setSignature(t.replace('\n', ''))}
@@ -192,19 +192,18 @@ const SignVerify = () => {
 
           <TextInput
             multiline
-            placeholder={loc.addresses.sign_placeholder_message}
+            textAlignVertical="top"
+            blurOnSubmit
+            placeholder={loc.addresses.add_pubs_placeholder_message}
             placeholderTextColor="#81868e"
             value={message}
             onChangeText={setMessage}
             testID="Message"
-            inputAccessoryViewID={BlueDoneAndDismissKeyboardInputAccessory.InputAccessoryViewID}
-            style={[styles.flex, styles.text, styles.textMessage, stylesHooks.text]}
+            style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
             spellCheck={false}
             editable={!loading}
-            onFocus={() => handleFocus(true)}
-            onBlur={() => handleFocus(false)}
           />
           <BlueSpacing10 />
 
@@ -228,12 +227,7 @@ const SignVerify = () => {
           {!isKeyboardVisible && (
             <>
               <FContainer inline>
-                <FButton
-                  onPress={handleSign}
-                  text={params.aoppURI ? loc.addresses.sign_sign_submit : loc.addresses.sign_sign}
-                  disabled={loading}
-                />
-                <FButton onPress={handleVerify} text={loc.addresses.sign_verify} disabled={loading} />
+                <FButton onPress={handleVerify} text={loc.addresses.add_pubs_combine} disabled={loading} />
               </FContainer>
               <BlueSpacing10 />
             </>
@@ -268,12 +262,12 @@ const SignVerify = () => {
   );
 };
 
-SignVerify.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+AddPubKeys.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.addresses.sign_title,
+  title: loc.addresses.add_pubs_title,
 }));
 
-export default SignVerify;
+export default AddPubKeys;
 
 const styles = StyleSheet.create({
   root: {

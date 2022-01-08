@@ -11,6 +11,9 @@ import { CreateTransactionResult, CreateTransactionUtxo, Transaction, Utxo } fro
 import { Signer, ECPairFactory, ECPairAPI } from 'ecpair';
 const ecc = require('tiny-secp256k1');
 const ECPair: ECPairAPI = ECPairFactory(ecc);
+const schnorr = require('bip-schnorr');
+const bip32 = require('bip32');
+const SchnorrBuffer = require('safe-buffer').Buffer;
 
 type CoinselectUtxo = {
   vout: number;
@@ -606,6 +609,70 @@ export class LegacyWallet extends AbstractWallet {
     const options = this.segwitType && useSegwit ? { segwitType: this.segwitType } : undefined;
     const signature = bitcoinMessage.sign(message, privateKey, keyPair.compressed, options);
     return signature.toString('base64');
+  }
+
+  signRawMessageSchnorr(message: string, pubKey: string): string {
+
+    // need to find address based on the pub key we have 
+    // TODO, use more efficient way of finding  the private key given a pub key!
+
+    let address;
+    let pk;
+    let found = 0;
+
+    for (let index = 0; index <= 1000; index++) {
+       address = this._getExternalAddressByIndex(index);
+       pk = this._getPubkeyByAddress(address, index);
+       if (pk.toString('hex').substring(2) == pubKey) {
+          console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+          found = 1;
+          break;
+       }
+       else {
+          console.log("Address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+       }
+    }
+
+    if (found == 0) {
+       console.log("Unable to private key for pubKey : "+pubKey);
+       alert("Unable to find private key for pub key : "+pubKey);
+       return "";
+    }
+     
+    let hash = bitcoin.crypto.sha256(Buffer.from(message));
+    
+    const wif = this._getWIFbyAddress(address);
+    if (wif === null) throw new Error('Invalid address');
+    const keyPair = ECPair.fromWIF(wif);
+    const privateKey = keyPair.privateKey;
+    if (!privateKey) throw new Error('Invalid private key');
+
+    let msgBuffer = SchnorrBuffer.from(hash);
+    let privateKeyHex = privateKey.toString('hex');
+    console.log("Priv key : "+privateKeyHex);
+
+    const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
+
+    console.log("Signature : "+createdSignatureFromHex.toString('hex'));
+    return createdSignatureFromHex.toString('hex');
+  }
+
+  verifyRawMessageSchnorr(message: string, pubKey: string, signature: string): boolean {
+
+    let hash = bitcoin.crypto.sha256(Buffer.from(message));
+    
+    const publicKeyBuffer = Buffer.from(pubKey, 'hex');
+    const signatureToVerify = Buffer.from(signature, 'hex');
+    const messageBuffer = Buffer.from(hash.toString('hex'), 'hex');
+
+    try {
+       schnorr.verify(publicKeyBuffer, messageBuffer, signatureToVerify);
+       console.log('The signature is valid.');
+       return true;
+    } catch (e) {
+       console.error('The signature verification failed: ' + e);
+       return false;
+    }
   }
 
   /**

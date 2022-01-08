@@ -47,7 +47,9 @@ const fs = require('../../blue_modules/fs');
 const isDesktop = getSystemName() === 'Mac OS X';
 const staticCache = {};
 
-const WalletsAddMultisigStep2 = () => {
+let taprootWallet;
+
+const WalletsAddTaprootStep2 = () => {
   const { addWallet, saveToDisk, isElectrumDisabled } = useContext(BlueStorageContext);
   const { colors } = useTheme();
 
@@ -143,35 +145,12 @@ const WalletsAddMultisigStep2 = () => {
   };
 
   const _onCreate = async () => {
-    const w = new MultisigHDWallet();
-    w.setM(m);
-    switch (format) {
-      case MultisigHDWallet.FORMAT_P2WSH:
-        w.setNativeSegwit();
-        w.setDerivationPath(MultisigHDWallet.PATH_NATIVE_SEGWIT);
-        break;
-      case MultisigHDWallet.FORMAT_P2SH_P2WSH:
-      case MultisigHDWallet.FORMAT_P2SH_P2WSH_ALT:
-        w.setWrappedSegwit();
-        w.setDerivationPath(MultisigHDWallet.PATH_WRAPPED_SEGWIT);
-        break;
-      case MultisigHDWallet.FORMAT_P2SH:
-        w.setLegacy();
-        w.setDerivationPath(MultisigHDWallet.PATH_LEGACY);
-        break;
-      default:
-        throw new Error('This should never happen');
-    }
-    for (const cc of cosigners) {
-      const fp = cc[1] || getFpCacheForMnemonics(cc[0]);
-      w.addCosigner(cc[0], fp, cc[2]);
-    }
-    w.setLabel(walletLabel);
-    if (!isElectrumDisabled) {
-      await w.fetchBalance();
-    }
-
+    //const w = new HDSegwitBech32Wallet();
+    const w = taprootWallet;
+    //w.generate();
     addWallet(w);
+      console.log("_onCreate secret : "+w.getSecret());
+      console.log("_onCreate id : "+w.getID());
     await saveToDisk();
     A(A.ENUM.CREATED_WALLET);
     ReactNativeHapticFeedback.trigger('notificationSuccess', { ignoreAndroidSystemSettings: false });
@@ -189,6 +168,9 @@ const WalletsAddMultisigStep2 = () => {
       setIsLoading(true);
       setIsMnemonicsModalVisible(true);
 
+      console.log("generateNewKey secret : "+w.getSecret());
+      console.log("generateNewKey id : "+w.getID());
+
       // filling cache
       setTimeout(() => {
         // filling cache
@@ -197,6 +179,7 @@ const WalletsAddMultisigStep2 = () => {
         setIsLoading(false);
       }, 500);
     });
+    taprootWallet = w;
   };
 
   const getPath = () => {
@@ -448,8 +431,8 @@ const WalletsAddMultisigStep2 = () => {
     return (
       <View>
         <MultipleStepsListItem
-          circledText={`${el.index + 1}`}
-          leftText={loc.formatString(loc.multisig.vault_key, { number: el.index + 1 })}
+          circledText={"TK"}
+          leftText={loc.formatString(loc.taproot.vault_key, { number: el.index + 1 })}
           dashes={dashType({ index: el.index, lastIndex: data.current.length - 1, isChecked, isFocus: renderProvideKeyButtons })}
           checked={isChecked}
           rightButton={{
@@ -529,12 +512,12 @@ const WalletsAddMultisigStep2 = () => {
             </View>
             <View style={styles.vaultKeyTextWrapper}>
               <Text style={[styles.vaultKeyText, stylesHook.vaultKeyText]}>
-                {loc.formatString(loc.multisig.vault_key, { number: vaultKeyData.keyIndex })}
+                {loc.formatString(loc.taproot.vault_key, { number: vaultKeyData.keyIndex })}
               </Text>
             </View>
           </View>
           <BlueSpacing20 />
-          <Text style={[styles.headerText, stylesHook.textDestination]}>{loc.multisig.wallet_key_created}</Text>
+          <Text style={[styles.headerText, stylesHook.textDestination]}>{loc.taproot.wallet_key_created}</Text>
           <BlueSpacing20 />
           <Text style={[styles.textDestination, stylesHook.textDestination]}>{loc._.seed}</Text>
           <BlueSpacing10 />
@@ -561,7 +544,7 @@ const WalletsAddMultisigStep2 = () => {
       <BottomModal isVisible={isProvideMnemonicsModalVisible} onClose={hideProvideMnemonicsModal}>
         <KeyboardAvoidingView enabled={!Platform.isPad} behavior={Platform.OS === 'ios' ? 'position' : null}>
           <View style={[styles.modalContent, stylesHook.modalContent]}>
-            <BlueTextCentered>{loc.multisig.type_your_mnemonics}</BlueTextCentered>
+            <BlueTextCentered>{loc.taproot.type_your_mnemonics}</BlueTextCentered>
             <BlueSpacing20 />
             <BlueFormMultiInput value={importText} onChangeText={setImportText} />
             <BlueSpacing40 />
@@ -774,10 +757,10 @@ const styles = StyleSheet.create({
   },
 });
 
-WalletsAddMultisigStep2.navigationOptions = navigationStyle({
+WalletsAddTaprootStep2.navigationOptions = navigationStyle({
   headerTitle: null,
   gestureEnabled: false,
   swipeEnabled: false,
 });
 
-export default WalletsAddMultisigStep2;
+export default WalletsAddTaprootStep2;

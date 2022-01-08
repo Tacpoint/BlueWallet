@@ -448,8 +448,8 @@ const WalletsAddMultisigStep2 = () => {
     return (
       <View>
         <MultipleStepsListItem
-          circledText={`${el.index + 1}`}
-          leftText={loc.formatString(loc.multisig.vault_key, { number: el.index + 1 })}
+          circledText={"TK"}
+          leftText={loc.formatString(loc.taproot.vault_key, { number: el.index + 1 })}
           dashes={dashType({ index: el.index, lastIndex: data.current.length - 1, isChecked, isFocus: renderProvideKeyButtons })}
           checked={isChecked}
           rightButton={{
@@ -529,12 +529,12 @@ const WalletsAddMultisigStep2 = () => {
             </View>
             <View style={styles.vaultKeyTextWrapper}>
               <Text style={[styles.vaultKeyText, stylesHook.vaultKeyText]}>
-                {loc.formatString(loc.multisig.vault_key, { number: vaultKeyData.keyIndex })}
+                {loc.formatString(loc.taproot.vault_key, { number: vaultKeyData.keyIndex })}
               </Text>
             </View>
           </View>
           <BlueSpacing20 />
-          <Text style={[styles.headerText, stylesHook.textDestination]}>{loc.multisig.wallet_key_created}</Text>
+          <Text style={[styles.headerText, stylesHook.textDestination]}>{loc.taproot.wallet_key_created}</Text>
           <BlueSpacing20 />
           <Text style={[styles.textDestination, stylesHook.textDestination]}>{loc._.seed}</Text>
           <BlueSpacing10 />
@@ -561,7 +561,7 @@ const WalletsAddMultisigStep2 = () => {
       <BottomModal isVisible={isProvideMnemonicsModalVisible} onClose={hideProvideMnemonicsModal}>
         <KeyboardAvoidingView enabled={!Platform.isPad} behavior={Platform.OS === 'ios' ? 'position' : null}>
           <View style={[styles.modalContent, stylesHook.modalContent]}>
-            <BlueTextCentered>{loc.multisig.type_your_mnemonics}</BlueTextCentered>
+            <BlueTextCentered>{loc.taproot.type_your_mnemonics}</BlueTextCentered>
             <BlueSpacing20 />
             <BlueFormMultiInput value={importText} onChangeText={setImportText} />
             <BlueSpacing40 />

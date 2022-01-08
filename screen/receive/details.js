@@ -42,7 +42,12 @@ import * as BlueElectrum from '../../blue_modules/BlueElectrum';
 const currency = require('../../blue_modules/currency');
 
 const ReceiveDetails = () => {
-  const { walletID, address } = useRoute().params;
+  const { walletID, address, index } = useRoute().params;
+
+  //alert("wallet Id : "+walletID);
+  //alert("address : "+address);
+  //alert("idx : "+index);
+
   const { wallets, saveToDisk, sleep, isElectrumDisabled, fetchAndSaveWalletTransactions } = useContext(BlueStorageContext);
   const wallet = wallets.find(w => w.getID() === walletID);
   const [customLabel, setCustomLabel] = useState();
@@ -55,6 +60,8 @@ const ReceiveDetails = () => {
   const [showConfirmedBalance, setShowConfirmedBalance] = useState(false);
   const [showAddress, setShowAddress] = useState(false);
   const { navigate, goBack, setParams } = useNavigation();
+
+
   const { colors } = useTheme();
   const [intervalMs, setIntervalMs] = useState(5000);
   const [eta, setEta] = useState('');
@@ -62,6 +69,28 @@ const ReceiveDetails = () => {
   const [initialUnconfirmed, setInitialUnconfirmed] = useState(0);
   const [displayBalance, setDisplayBalance] = useState('');
   const fetchAddressInterval = useRef();
+
+  const navigateToSignVerify = () =>
+    navigate('SignVerifyRoot', {
+      screen: 'SignVerify',
+      params: {
+        walletID: wallet.getID(),
+        address: address,
+        //address: wallet.getAllExternalAddresses()[0], // works for both single address and HD wallets
+      },
+    });
+
+  const navigateToAddPubKeys = () =>
+    navigate('AddPubKeysRoot', {
+      screen: 'AddPubKeys',
+      params: {
+        walletID: wallet.getID(),
+        address: address,
+        //address: wallet.getAllExternalAddresses()[0], // works for both single address and HD wallets
+      },
+    });
+
+
   const stylesHook = StyleSheet.create({
     modalContent: {
       backgroundColor: colors.modal,
@@ -335,6 +364,10 @@ const ReceiveDetails = () => {
               title={loc.receive.details_setAmount}
               onPress={showCustomAmountModal}
             />
+            <BlueButton onPress={navigateToAddPubKeys} testID="AddPubKeys" title={loc.addresses.add_pubs_title} />
+            <BlueSpacing20 />
+            <BlueButton onPress={navigateToSignVerify} testID="SignVerify" title={loc.addresses.sign_title} />
+            <BlueSpacing20 />
             <BlueButton onPress={handleShareButtonPressed} title={loc.receive.details_share} />
           </BlueCard>
         </View>
