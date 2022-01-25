@@ -625,6 +625,7 @@ const WalletDetails = () => {
                   </>
                 )}
 
+{/*
                 {wallet.allowXpub() && (
                   <>
                     <BlueSpacing20 />
@@ -638,6 +639,7 @@ const WalletDetails = () => {
                     <SecondButton onPress={navigateToSignVerify} testID="SignVerify" title={loc.addresses.sign_title} />
                   </>
                 )}
+*/}
                 {wallet.type === LightningLdkWallet.type && (
                   <>
                     <BlueSpacing20 />

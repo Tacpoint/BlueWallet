@@ -358,12 +358,6 @@ const ReceiveDetails = () => {
         </View>
         <View style={stylesHook.share}>
           <BlueCard>
-            <BlueButtonLink
-              style={stylesHook.link}
-              testID="SetCustomAmountButton"
-              title={loc.receive.details_setAmount}
-              onPress={showCustomAmountModal}
-            />
             <BlueButton onPress={navigateToAddPubKeys} testID="AddPubKeys" title={loc.addresses.add_pubs_title} />
             <BlueSpacing20 />
             <BlueButton onPress={navigateToSignVerify} testID="SignVerify" title={loc.addresses.sign_title} />
