@@ -25,6 +25,8 @@ import { BlueStorageContext } from '../../blue_modules/storage-context';
 import loc from '../../loc';
 import confirm from '../../helpers/confirm';
 
+const Taproot = require('../../blue_modules/Taproot');
+
 const AddPubKeys = () => {
   const { colors } = useTheme();
   const { wallets, sleep } = useContext(BlueStorageContext);
@@ -32,7 +34,8 @@ const AddPubKeys = () => {
   const navigation = useNavigation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [address, setAddress] = useState(params.address ?? '');
-  const [message, setMessage] = useState(params.message ?? '');
+  const [message, setMessage] = useState('');
+  const [fundingAddress, setFundingAddress] = useState('');
   const [signature, setSignature] = useState('');
   const [loading, setLoading] = useState(false);
   const [messageHasFocus, setMessageHasFocus] = useState(false);
@@ -109,6 +112,22 @@ const AddPubKeys = () => {
       Alert.alert(loc.errors.error, loc.aopp.send_error);
     }
 
+    setLoading(false);
+  };
+
+  const handleGenerateFundingTxAddress = async () => {
+    setLoading(true);
+    await sleep(10); // wait for loading indicator to appear
+    try {
+      let taprootKey = wallet.combinePubKeysForTaproot(address, signature);
+      let secretHash = wallet.generateSecretHash(address);
+      let data = await Taproot.createFundingTxAddress(taprootKey, address, signature, secretHash);   
+
+      setFundingAddress(data);
+    } catch (e) {
+      ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
+      Alert.alert(loc.errors.error, e.message);
+    }
     setLoading(false);
   };
 
@@ -196,8 +215,8 @@ const AddPubKeys = () => {
             blurOnSubmit
             placeholder={loc.addresses.add_pubs_placeholder_message}
             placeholderTextColor="#81868e"
-            value={message}
-            onChangeText={setMessage}
+            value={fundingAddress}
+            onChangeText={t => setFundingAddress(t.replace('\n', ''))}
             testID="Message"
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
@@ -227,7 +246,7 @@ const AddPubKeys = () => {
           {!isKeyboardVisible && (
             <>
               <FContainer inline>
-                <FButton onPress={handleVerify} text={loc.addresses.add_pubs_combine} disabled={loading} />
+                <FButton onPress={handleGenerateFundingTxAddress} text={loc.addresses.add_pubs_combine} disabled={loading} />
               </FContainer>
               <BlueSpacing10 />
             </>

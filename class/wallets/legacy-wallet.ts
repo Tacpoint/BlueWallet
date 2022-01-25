@@ -675,6 +675,80 @@ export class LegacyWallet extends AbstractWallet {
     }
   }
 
+  combinePubKeysForTaproot(pubKey1: string, pubKey2: string): string {
+
+    const convert = schnorr.convert;
+    const muSig = schnorr.muSig;
+
+    var pubKeys = [];
+
+    pubKeys.push(SchnorrBuffer.from(pubKey1, 'hex'));
+    pubKeys.push(SchnorrBuffer.from(pubKey2, 'hex'));
+
+    let pubKeyHash = muSig.computeEll(pubKeys);
+    const pkCombined = muSig.pubKeyCombine(pubKeys, pubKeyHash);
+    pubKeyCombined = convert.intToBuffer(pkCombined.affineX);
+
+    console.log("Combined pub key : "+pubKeyCombined.toString('hex'));
+
+    return pubKeyCombined.toString('hex');
+
+  }
+
+  generateSecretHash(pubKey: string): string {
+
+    // need to find address based on the pub key we have 
+    // TODO, use more efficient way of finding  the private key given a pub key!
+
+    let address;
+    let pk;
+    let found = 0;
+
+    for (let index = 0; index <= 1000; index++) {
+       address = this._getExternalAddressByIndex(index);
+       pk = this._getPubkeyByAddress(address, index);
+       if (pk.toString('hex').substring(2) == pubKey) {
+          console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+          found = 1;
+          break;
+       }
+       else {
+          console.log("Address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+       }
+    }
+
+    if (found == 0) {
+       console.log("Unable to private key for pubKey : "+pubKey);
+       alert("Unable to find private key for pub key : "+pubKey);
+       return "";
+    }
+     
+    let hash = bitcoin.crypto.sha256(Buffer.from(pubKey));
+    
+    const wif = this._getWIFbyAddress(address);
+    if (wif === null) throw new Error('Invalid address');
+    const keyPair = ECPair.fromWIF(wif);
+    const privateKey = keyPair.privateKey;
+    if (!privateKey) throw new Error('Invalid private key');
+
+    let msgBuffer = SchnorrBuffer.from(hash);
+    let privateKeyHex = privateKey.toString('hex');
+    console.log("Priv key : "+privateKeyHex);
+
+    const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
+
+    // now hash the signature, which becomes our pre-image
+    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex')));
+
+    // hash the pre-image which becomes our "secret" we provide to the lender or borrower
+    let hashedPreImage = bitcoin.crypto.sha256(Buffer.from(preImage.toString('hex')));
+
+    console.log("Pre-image hash : "+preImage.toString('hex'));
+    console.log("Secret hash : "+hashedPreImage.toString('hex'));
+
+    return hashedPreImage.toString('hex');
+  }
+
   /**
    * Verifies text message signature by address
    *
