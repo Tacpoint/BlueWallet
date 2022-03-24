@@ -60,6 +60,10 @@ export type TransactionOutput = {
 export type Transaction = {
   txid: string;
   hash: string;
+  taprootfundingaddress: string;
+  taprootvaultaddress: string;
+  spent: boolean;
+  spendingtxid: string;
   version: number;
   size: number;
   vsize: number;

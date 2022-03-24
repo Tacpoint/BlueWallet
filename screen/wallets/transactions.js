@@ -60,6 +60,24 @@ const WalletTransactions = () => {
   const [lnNodeInfo, setLnNodeInfo] = useState({ canReceive: 0, canSend: 0 });
   const walletActionButtonsRef = useRef();
 
+  console.log("In wallet details screen for wallet : "+wallet.label);
+  console.log("wallet balance for wallet : "+wallet.label+" == "+wallet.getBalance());
+
+  const navigateToGenerateFundingAddress = async () => {
+
+    let pk = await wallet.findFirstUnusedSchnorrPubKey();
+    console.log("Found unused pub key : "+pk);
+
+    navigate('GenerateFundingAddressRoot', { 
+       screen: 'GenerateFundingAddress', 
+       params: { 
+          walletID: wallet.getID(), 
+          address: pk
+       } 
+    });
+  }
+
+
   const stylesHook = StyleSheet.create({
     advancedTransactionOptionsModalContent: {
       backgroundColor: colors.elevated,
@@ -92,8 +110,10 @@ const WalletTransactions = () => {
    * @returns {Array}
    */
   const getTransactionsSliced = (limit = Infinity) => {
+    //console.log("In getTransactionsSliced ...");
     let txs = wallet.getTransactions();
     for (const tx of txs) {
+      //console.log("tx found in wallet : "+wallet.label+" "+JSON.stringify(tx));
       tx.sort_ts = +new Date(tx.received);
     }
     txs = txs.sort(function (a, b) {
@@ -141,6 +161,8 @@ const WalletTransactions = () => {
     if (newWallet) {
       setParams({ walletID, isLoading: false });
     }
+
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletID]);
 
@@ -179,6 +201,9 @@ const WalletTransactions = () => {
    * Forcefully fetches TXs and balance for wallet
    */
   const refreshTransactions = async () => {
+
+    alert("calling refreshTransactions ...");
+
     if (isElectrumDisabled) return setIsLoading(false);
     if (isLoading) return;
     setIsLoading(true);
@@ -191,12 +216,15 @@ const WalletTransactions = () => {
       /** @type {LegacyWallet} */
       const balanceStart = +new Date();
       const oldBalance = wallet.getBalance();
+      console.log("balance for wallet : "+wallet.label+" == "+oldBalance);
+      //await wallet.fetchTaprootBalance('bc1peetkcz7ztg9trjeys5zscm0w09jxmlsd94mywr7knulz23ywmxpq49ljqm');
       await wallet.fetchBalance();
       if (oldBalance !== wallet.getBalance()) smthChanged = true;
       const balanceEnd = +new Date();
       console.log(wallet.getLabel(), 'fetch balance took', (balanceEnd - balanceStart) / 1000, 'sec');
       const start = +new Date();
       const oldTxLen = wallet.getTransactions().length;
+      //await wallet.fetchTaprootTransactions('bc1peetkcz7ztg9trjeys5zscm0w09jxmlsd94mywr7knulz23ywmxpq49ljqm');
       await wallet.fetchTransactions();
       if (wallet.fetchPendingTransactions) {
         await wallet.fetchPendingTransactions();
@@ -218,6 +246,7 @@ const WalletTransactions = () => {
       await saveToDisk(); // caching
       //    setDataSource([...getTransactionsSliced(limit)]);
     }
+    console.log("Setting isLoading to false ...");
     setIsLoading(false);
     setTimeElapsed(prev => prev + 1);
   };
@@ -261,8 +290,7 @@ const WalletTransactions = () => {
            */}
           {wallet.getTransactions().length > 0 &&
             wallet.chain !== Chain.OFFCHAIN &&
-            wallet.type !== LightningLdkWallet.type &&
-            renderSellFiat()}
+            wallet.type !== LightningLdkWallet.type }
           {wallet.chain === Chain.OFFCHAIN && renderMarketplaceButton()}
           {wallet.chain === Chain.OFFCHAIN && Platform.OS === 'ios' && renderLappBrowserButton()}
         </View>
@@ -621,13 +649,6 @@ const WalletTransactions = () => {
               </Text>
               {isLightning() && <Text style={styles.emptyTxsLightning}>{loc.wallets.list_empty_txs2_lightning}</Text>}
 
-              {!isLightning() && (
-                <TouchableOpacity onPress={navigateToBuyBitcoin} style={styles.buyBitcoin} accessibilityRole="button">
-                  <Text testID="NoTxBuyBitcoin" style={styles.buyBitcoinText}>
-                    {loc.wallets.list_tap_here_to_buy}
-                  </Text>
-                </TouchableOpacity>
-              )}
             </ScrollView>
           }
           {...(isElectrumDisabled ? {} : { refreshing: isLoading, onRefresh: refreshTransactions })}
@@ -644,20 +665,11 @@ const WalletTransactions = () => {
           <FButton
             testID="ReceiveButton"
             text={loc.receive.header}
-            onPress={() => {
-              if (wallet.chain === Chain.OFFCHAIN) {
-                navigate('LNDCreateInvoiceRoot', { screen: 'LNDCreateInvoice', params: { walletID: wallet.getID() } });
-              } else {
-                navigate('ReceiveDetailsRoot', { screen: 'ReceiveDetails', params: { walletID: wallet.getID() } });
-              }
-            }}
-            icon={
-              <View style={styles.receiveIcon}>
-                <Icon name="arrow-down" size={buttonFontSize} type="font-awesome" color={colors.buttonAlternativeTextColor} />
-              </View>
-            }
+            onPress={navigateToGenerateFundingAddress}
           />
         )}
+
+        {/*
         {(wallet.allowSend() || (wallet.type === WatchOnlyWallet.type && wallet.isHd())) && (
           <FButton
             onLongPress={sendButtonLongPress}
@@ -671,6 +683,7 @@ const WalletTransactions = () => {
             }
           />
         )}
+        */}
       </FContainer>
     </View>
   );

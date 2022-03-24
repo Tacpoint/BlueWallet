@@ -1,7 +1,117 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const schnorr = require('bip-schnorr');
 const Buffer = require('safe-buffer').Buffer;
 
-module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash) {
+const FUNDING_ADDRESS = 'funding_address_';
+const USED_PUB_KEYS = 'used_pub_keys_';
+const API_SERVER = 'http://52.10.139.220:8080';
+
+module.exports.spendFundingBorrower = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, scriptPathIndex, borrowerSig) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('borrowerHash', borrowerHash);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('scriptPathIndex', scriptPathIndex);
+    form_data.append('borrowerSig', borrowerSig);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/spendFundingBorrower',form_data);
+
+    console.log("Taproot.spendFundingBorrower() : "+JSON.stringify(response.data));
+
+    let signedTx = response.data['BorrowerFundingSpendTxHex'];
+
+    return signedTx;
+
+};
+
+module.exports.createFundingSigHash = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, scriptPathIndex) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('borrowerHash', borrowerHash);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('scriptPathIndex', scriptPathIndex);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createFundingSighash',form_data);
+
+    console.log("Taproot.createSigHash() : "+JSON.stringify(response.data));
+
+    let sigHash = response.data['Sighash'];
+
+    return sigHash;
+
+};
+
+module.exports.createRawTransaction = async function (txId, vout, toAddress, amt, includeSequence) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('txId', txId);
+    form_data.append('vout', vout);
+    form_data.append('address', toAddress);
+    form_data.append('amt', amt);
+    form_data.append('includeSequence', includeSequence);
+
+    console.log("Taproot.createRawTransaction() amt : "+amt);
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createRawTransaction',form_data);
+
+    console.log("Taproot.createRawTransaction() : "+JSON.stringify(response.data));
+
+    let rawTxHex = response.data['TxHex'];
+
+    return rawTxHex;
+
+};
+
+module.exports.getRawTransaction = async function (txId, tapAddress) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapAddress', tapAddress);
+    form_data.append('txId', txId);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/getRawTransaction',form_data);
+
+    console.log("Taproot.getRawTransaction() : "+JSON.stringify(response.data));
+    let rawTxHex = response.data['RawTxHex'];
+    let voutIndex = response.data['TxVout'];
+    let confirmations = response.data['Confirmations'];
+
+    var txResult = {
+       "rawTxHex": rawTxHex,
+       "voutIndex": voutIndex,
+       "confirmations": confirmations
+    }
+
+    var txJson = JSON.stringify(txResult);
+
+    return txJson;
+
+};
+
+module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, walletID) {
 
 
     let taprootFundingAddress;
@@ -16,11 +126,121 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
     form_data.append('borrowerHash', borrowerHash);
     form_data.append('lenderPubKey', pubKeyLender);
 
-    const response = await axios.post('http://localhost:8080/btc_vault_api-0.0.1-SNAPSHOT/btc/createFundingTxAddress',form_data);
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createFundingTxAddress',form_data);
 
     console.log(response.data);
     taprootFundingAddress = response.data['FundingTxAddress'];
 
+
+    var fundingTx = {
+       "taprootFundingPubKey": taprootPubKey,
+       "lenderFundingPubKey": pubKeyLender,
+       "borrowerFundingPubKey": pubKeyBorrower,
+       "borrowerHash": borrowerHash,
+       "walletID": walletID
+    }
+
+    var fundingTxJson = JSON.stringify(fundingTx);
+
+    //
+    // for cleaning up storage only and setting one mainnet taproot address!
+    //
+    //taprootFundingAddress = 'bc1peetkcz7ztg9trjeys5zscm0w09jxmlsd94mywr7knulz23ywmxpq49ljqm';
+    //const keys = await AsyncStorage.getAllKeys();
+    //for (let i = 0; i < keys.length; i++) {
+    //   console.log("Key : "+keys[i].toString());
+    //   if (keys[i].indexOf(FUNDING_ADDRESS) == 0) {
+    //      console.log("Removing key : "+keys[i]);
+    //      await AsyncStorage.removeItem(keys[i]);
+    //   }
+    //   if (keys[i].indexOf(USED_PUB_KEYS) == 0) {
+    //      console.log("Removing key : "+keys[i]);
+    //      await AsyncStorage.removeItem(keys[i]);
+    //   }
+    //}
+    // end for cleaning up storage only!
+    
+    AsyncStorage.setItem(FUNDING_ADDRESS+taprootFundingAddress, fundingTxJson);
+ 
+    // now save the taproot funding address as part of an array for the given wallet Id so that it can be
+    // retrieved later in order to verify if a specific BTC tx includes a taproot funding address
+
+    var fundingTxAddresses = [];
+
+    var savedFundingTxAddresses = await AsyncStorage.getItem(FUNDING_ADDRESS+walletID);
+
+    if (savedFundingTxAddresses !== null) {
+       fundingTxAddresses = JSON.parse(savedFundingTxAddresses);
+    }
+
+    fundingTxAddresses.push(taprootFundingAddress);
+
+    AsyncStorage.setItem(FUNDING_ADDRESS+walletID, JSON.stringify(fundingTxAddresses));
+
+    // now we save the borrower and lender pub keys separately so we can easily retrieve later when
+    // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
+
+    var usedPubKeys = [];
+
+    var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
+
+    if (savedUsedPubKeys !== null) {
+       usedPubKeys = JSON.parse(savedUsedPubKeys);
+    }
+
+    usedPubKeys.push(pubKeyLender);
+    if (pubKeyLender !== pubKeyBorrower) {
+       usedPubKeys.push(pubKeyBorrower);
+    }
+
+    AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
+
     return taprootFundingAddress;
 
+};
+
+module.exports.getFundingTxInfo = async function (address) {
+
+    var taprootInfo = await AsyncStorage.getItem(FUNDING_ADDRESS+address);
+
+    if (taprootInfo !== null) {
+       taprootInfo = JSON.parse(taprootInfo);
+    }
+
+    console.log("getFundingTxInfo : "+taprootInfo.toString());
+ 
+    return taprootInfo;
+
+};
+
+module.exports.getFundingAddresses = async function (walletID) {
+
+    var fundingTxAddresses = [];
+
+    var savedFundingTxAddresses = await AsyncStorage.getItem(FUNDING_ADDRESS+walletID);
+
+    if (savedFundingTxAddresses !== null) {
+       fundingTxAddresses = JSON.parse(savedFundingTxAddresses);
+    }
+
+    console.log("getFundingAddresses - Funding tx addresses for wallet Id : "+walletID+" "+fundingTxAddresses.toString());
+ 
+    return fundingTxAddresses;
+
+};
+
+module.exports.findUsedPubKeys = async function (walletID) {
+
+    var usedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
+
+
+    if (usedPubKeys !== null) {
+       usedPubKeys = JSON.parse(usedPubKeys);
+       console.log("findUsedPubKeys : "+usedPubKeys.toString());
+    }
+    else {
+       console.log("findUsedPubKeys : no used pub keys found for wallet Id : "+walletID);
+    } 
+ 
+    return usedPubKeys;
 };

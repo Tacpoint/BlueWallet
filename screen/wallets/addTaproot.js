@@ -17,7 +17,7 @@ const WalletsAddTaproot = () => {
   const { colors } = useTheme();
   const { navigate } = useNavigation();
   const loadingAnimation = useRef();
-  const { walletLabel = loc.taproot.default_label } = useRoute().params;
+  const { walletLabel } = useRoute().params;
   const [m, setM] = useState(1);
   const [n, setN] = useState(1);
   const [isModalVisible, setIsModalVisible] = useState(false);

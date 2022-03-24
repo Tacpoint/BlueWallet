@@ -24,6 +24,10 @@ import { BlueStorageContext } from '../../blue_modules/storage-context';
 import * as BlueElectrum from '../../blue_modules/BlueElectrum';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
+import { FContainer, FButton } from '../../components/FloatButtons';
+
+const Taproot = require('../../blue_modules/Taproot');
+
 const buttonStatus = Object.freeze({
   possible: 1,
   unknown: 2,
@@ -36,6 +40,7 @@ const TransactionsStatus = () => {
   const { navigate, setOptions, goBack } = useNavigation();
   const { colors } = useTheme();
   const wallet = useRef(wallets.find(w => w.getID() === walletID));
+
   const [isCPFPPossible, setIsCPFPPossible] = useState();
   const [isRBFBumpFeePossible, setIsRBFBumpFeePossible] = useState();
   const [isRBFCancelPossible, setIsRBFCancelPossible] = useState();
@@ -44,6 +49,136 @@ const TransactionsStatus = () => {
   const fetchTxInterval = useRef();
   const [intervalMs, setIntervalMs] = useState(1000);
   const [eta, setEta] = useState('');
+
+  const navigateToGenerateVaultAddress = async () => {
+
+    // find the funding tx address which will be passed to the generate vault screen
+
+    let knownFundingAddresses = await Taproot.getFundingAddresses(walletID);
+
+    let fundingTxAddress = "";
+
+    console.log("Retrieved saved funding tx addresses : "+knownFundingAddresses.toString());
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownFundingAddresses.length; index2++) {
+          console.log("Comparing knownFundingAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
+
+          if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             fundingTxAddress = knownFundingAddresses[index2];
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('GenerateVaultAddressRoot', {
+      screen: 'GenerateVaultAddress',
+      params: {
+        walletID: walletID,
+        address: fundingTxAddress,
+      },
+    });
+
+  };
+
+  const navigateToSpendFundingTxAsBorrower = async () => {
+
+    // find the funding tx address which will be passed to the generate vault screen
+
+    let knownFundingAddresses = await Taproot.getFundingAddresses(walletID);
+
+    let fundingTxAddress = "";
+    let amount = 0;
+
+    console.log("Retrieved saved funding tx addresses : "+knownFundingAddresses.toString());
+
+    console.log("Current Transaction details : "+JSON.stringify(tx));
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownFundingAddresses.length; index2++) {
+          console.log("Comparing knownFundingAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
+
+          if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             fundingTxAddress = knownFundingAddresses[index2];
+             amount = tx.outputs[index1].value * 100000000;
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " value : "+amount);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('SpendFundingTxAsBorrowerRoot', {
+      screen: 'SpendFundingTxAsBorrower',
+      params: {
+        walletID: walletID,
+        address: fundingTxAddress,
+        txID: tx.txid,
+        txAmount: amount, 
+      },
+    });
+
+  };
+
+  const navigateToSpendFundingTxAsLender = async () => {
+
+    // find the funding tx address which will be passed to the generate vault screen
+
+    let knownFundingAddresses = await Taproot.getFundingAddresses(walletID);
+
+    let fundingTxAddress = "";
+
+    console.log("Retrieved saved funding tx addresses : "+knownFundingAddresses.toString());
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownFundingAddresses.length; index2++) {
+          console.log("Comparing knownFundingAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
+
+          if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             fundingTxAddress = knownFundingAddresses[index2];
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('SpendFundingTxAsLenderRoot', {
+      screen: 'SpendFundingTxAsLender',
+      params: {
+        walletID: walletID,
+        address: fundingTxAddress,
+      },
+    });
+
+  };
+
   const stylesHook = StyleSheet.create({
     value: {
       color: colors.alternativeTextColor2,
@@ -59,6 +194,12 @@ const TransactionsStatus = () => {
     },
     details: {
       backgroundColor: colors.lightButton,
+    },
+    share: {
+      justifyContent: 'flex-end',
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginBottom: 8,
     },
   });
 
@@ -85,8 +226,16 @@ const TransactionsStatus = () => {
   }, [colors, tx]);
 
   useEffect(() => {
+
+    let currentTx;
+    console.log("Checking tx hashes ...");
+
     for (const tx of wallet.current.getTransactions()) {
+    
+      console.log("transactionStatus hash : "+hash+" tx.hash : "+tx.hash);
+
       if (tx.hash === hash) {
+        currentTx = tx;
         setTX(tx);
         break;
       }
@@ -433,6 +582,53 @@ const TransactionsStatus = () => {
               <Text style={styles.confirmationsText}>{eta}</Text>
             </View>
           ) : null}
+
+         <BlueSpacing10 />
+         <BlueSpacing10 />
+
+
+         {(() => {
+       
+            console.log("Was tx spent? "+tx.spent);
+            if (tx.value > 0 && !tx.spent) {
+                  return (
+                     <View style={stylesHook.share}>
+                        <BlueCard>
+                           <BlueButton onPress={navigateToSpendFundingTxAsBorrower} title={loc.taproot.spend_funding_tx_borrower} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueButton onPress={navigateToSpendFundingTxAsLender} title={loc.taproot.spend_funding_tx_lender} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueButton onPress={navigateToGenerateVaultAddress} title={loc.taproot.generate_borrower_sig_for_lender_funding_spend} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueButton onPress={navigateToGenerateVaultAddress} title={loc.taproot.generate_vault_address} />
+                        </BlueCard>
+                     </View>
+
+                  );
+            }
+            else if (tx.value > 0) {
+                  return (
+                     <View style={stylesHook.share}>
+                        <BlueCard>
+                           <BlueButton onPress={navigateToSpendFundingTxAsBorrower} title={loc.taproot.view_spending_tx} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                        </BlueCard>
+                     </View>
+
+                  );
+            }
+         })()}
+
+ 
+
         </BlueCard>
 
         <View style={styles.actions}>
@@ -444,6 +640,7 @@ const TransactionsStatus = () => {
     </SafeBlueArea>
   );
 };
+
 
 export default TransactionsStatus;
 const styles = StyleSheet.create({

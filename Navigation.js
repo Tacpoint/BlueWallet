@@ -44,6 +44,11 @@ import ViewEditMultisigCosigners from './screen/wallets/viewEditMultisigCosigner
 import WalletXpub from './screen/wallets/xpub';
 import SignVerify from './screen/wallets/signVerify';
 import AddPubKeys from './screen/wallets/addPubKeys';
+import GenerateFundingAddress from './screen/wallets/generateFundingAddress';
+import GenerateVaultAddress from './screen/wallets/generateVaultAddress';
+import ViewTaprootHex from './screen/wallets/viewTaprootHex';
+import SpendFundingTxAsBorrower from './screen/wallets/spendFundingTxAsBorrower';
+import SpendFundingTxAsLender from './screen/wallets/spendFundingTxAsLender';
 import WalletAddresses from './screen/wallets/addresses';
 import BuyBitcoin from './screen/wallets/buyBitcoin';
 import HodlHodl from './screen/wallets/hodlHodl';
@@ -420,6 +425,17 @@ const SignVerifyStackRoot = () => {
   );
 };
 
+const GenerateFundingAddressStack = createNativeStackNavigator();
+const GenerateFundingAddressStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <GenerateFundingAddressStack.Navigator name="GenerateFundingAddressRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="GenerateFundingAddress">
+      <GenerateFundingAddressStack.Screen name="GenerateFundingAddress" component={GenerateFundingAddress} options={GenerateFundingAddress.navigationOptions(theme)} />
+    </GenerateFundingAddressStack.Navigator>
+  );
+};
+
 const AddPubKeysStack = createNativeStackNavigator();
 const AddPubKeysStackRoot = () => {
   const theme = useTheme();
@@ -428,6 +444,50 @@ const AddPubKeysStackRoot = () => {
     <AddPubKeysStack.Navigator name="AddPubKeysRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="AddPubKeys">
       <AddPubKeysStack.Screen name="AddPubKeys" component={AddPubKeys} options={AddPubKeys.navigationOptions(theme)} />
     </AddPubKeysStack.Navigator>
+  );
+};
+
+const GenerateVaultAddressStack = createNativeStackNavigator();
+const GenerateVaultAddressStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <GenerateVaultAddressStack.Navigator name="GenerateVaultAddressRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="GenerateVaultAddress">
+      <GenerateVaultAddressStack.Screen name="GenerateVaultAddress" component={GenerateVaultAddress} options={GenerateVaultAddress.navigationOptions(theme)} />
+    </GenerateVaultAddressStack.Navigator>
+  );
+};
+
+const ViewTaprootHexStack = createNativeStackNavigator();
+const ViewTaprootHexStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <ViewTaprootHexStack.Navigator name="ViewTaprootHexRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="ViewTaprootHex">
+      <ViewTaprootHexStack.Screen name="ViewTaprootHex" component={ViewTaprootHex} options={ViewTaprootHex.navigationOptions(theme)} />
+    </ViewTaprootHexStack.Navigator>
+  );
+};
+
+const SpendFundingTxAsBorrowerStack = createNativeStackNavigator();
+const SpendFundingTxAsBorrowerStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <SpendFundingTxAsBorrowerStack.Navigator name="SpendFundingTxAsBorrowerRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="SpendFundingTxAsBorrower">
+      <SpendFundingTxAsBorrowerStack.Screen name="SpendFundingTxAsBorrower" component={SpendFundingTxAsBorrower} options={SpendFundingTxAsBorrower.navigationOptions(theme)} />
+    </SpendFundingTxAsBorrowerStack.Navigator>
+  );
+};
+
+const SpendFundingTxAsLenderStack = createNativeStackNavigator();
+const SpendFundingTxAsLenderStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <SpendFundingTxAsLenderStack.Navigator name="SpendFundingTxAsLenderRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="SpendFundingTxAsLender">
+      <SpendFundingTxAsLenderStack.Screen name="SpendFundingTxAsLender" component={SpendFundingTxAsLender} options={SpendFundingTxAsLender.navigationOptions(theme)} />
+    </SpendFundingTxAsLenderStack.Navigator>
   );
 };
 
@@ -550,6 +610,11 @@ const Navigation = () => {
       <RootStack.Screen name="WalletXpubRoot" component={WalletXpubStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="SignVerifyRoot" component={SignVerifyStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="AddPubKeysRoot" component={AddPubKeysStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="GenerateFundingAddressRoot" component={GenerateFundingAddressStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="GenerateVaultAddressRoot" component={GenerateVaultAddressStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="SpendFundingTxAsLenderRoot" component={SpendFundingTxAsLenderStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="SpendFundingTxAsBorrowerRoot" component={SpendFundingTxAsBorrowerStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="ViewTaprootHexRoot" component={ViewTaprootHexStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="BuyBitcoin" component={BuyBitcoin} options={BuyBitcoin.navigationOptions(theme)} />
       <RootStack.Screen name="Marketplace" component={Marketplace} options={Marketplace.navigationOptions(theme)} />
       <RootStack.Screen name="SelectWallet" component={SelectWallet} />

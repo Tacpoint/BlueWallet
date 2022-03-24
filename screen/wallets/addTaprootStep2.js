@@ -147,6 +147,7 @@ const WalletsAddTaprootStep2 = () => {
   const _onCreate = async () => {
     //const w = new HDSegwitBech32Wallet();
     const w = taprootWallet;
+    w.setLabel(walletLabel);
     //w.generate();
     addWallet(w);
       console.log("_onCreate secret : "+w.getSecret());
@@ -278,9 +279,6 @@ const WalletsAddTaprootStep2 = () => {
   const useMnemonicPhrase = () => {
     setIsLoading(true);
 
-    if (MultisigHDWallet.isXpubValid(importText)) {
-      return tryUsingXpub(importText);
-    }
     const hd = new HDSegwitBech32Wallet();
     hd.setSecret(importText);
     if (!hd.validateMnemonic()) {
@@ -288,14 +286,24 @@ const WalletsAddTaprootStep2 = () => {
       return alert(loc.multisig.invalid_mnemonics);
     }
 
-    const cosignersCopy = [...cosigners];
-    cosignersCopy.push([hd.getSecret(), false, false]);
-    if (Platform.OS !== 'android') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCosigners(cosignersCopy);
+    taprootWallet = hd;
 
     setIsProvideMnemonicsModalVisible(false);
     setIsLoading(false);
     setImportText('');
+    const cosignersCopy = [...cosigners];
+    cosignersCopy.push([taprootWallet.getSecret(), false, false]);
+    if (Platform.OS !== 'android') LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCosigners(cosignersCopy);
+    setVaultKeyData({ keyIndex: cosignersCopy.length, seed: taprootWallet.getSecret(), xpub: taprootWallet.getXpub(), isLoading: false });
+
+    // filling cache
+    setTimeout(() => {
+      // filling cache
+      setXpubCacheForMnemonics(taprootWallet.getSecret());
+      setFpCacheForMnemonics(taprootWallet.getSecret());
+      setIsLoading(false);
+    }, 500);
   };
 
   const isValidMnemonicSeed = mnemonicSeed => {
@@ -466,7 +474,8 @@ const WalletsAddTaprootStep2 = () => {
                 text: loc.wallets.import_do_import,
                 disabled: vaultKeyData.isLoading,
               }}
-              dashes={el.index === data.current.length - 1 ? MultipleStepsListItemDashType.top : MultipleStepsListItemDashType.topAndBottom}
+              dashes={MultipleStepsListItemDashType.topAndBottom}
+              //dashes={el.index === data.current.length - 1 ? MultipleStepsListItemDashType.top : MultipleStepsListItemDashType.topAndBottom}
               checked={isChecked}
             />
           </>

@@ -15,6 +15,8 @@ const schnorr = require('bip-schnorr');
 const bip32 = require('bip32');
 const SchnorrBuffer = require('safe-buffer').Buffer;
 
+const Taproot = require('../../blue_modules/Taproot');
+
 type CoinselectUtxo = {
   vout: number;
   value: number;
@@ -118,11 +120,37 @@ export class LegacyWallet extends AbstractWallet {
   async fetchBalance(): Promise<void> {
     try {
       const address = this.getAddress();
+      console.log("fetchBalance() - checking balance for address : "+address);
       if (!address) throw new Error('LegacyWallet: Invalid address');
       const balance = await BlueElectrum.getBalanceByAddress(address);
       this.balance = Number(balance.confirmed);
       this.unconfirmed_balance = Number(balance.unconfirmed);
       this._lastBalanceFetch = +new Date();
+    } catch (Error) {
+      console.warn(Error);
+    }
+  }
+
+  /**
+   * Fetches balance of the Wallet via API.
+   * Returns VOID. Get the actual balance via getter.
+   *
+   * @returns {Promise.<void>}
+   */
+  async fetchTaprootBalance(): Promise<void> {
+    try {
+      //const address = this.getAddress();
+
+      let knownFundingAddresses = await Taproot.getFundingAddresses(this.getID());
+      if (knownFundingAddresses.length > 0)  {
+         let address = knownFundingAddresses[0];
+         if (!address) throw new Error('LegacyWallet: Invalid address');
+         console.log("About to lookup taproot balance for funding address : "+address);
+         const balance = await BlueElectrum.getBalanceByAddress(address);
+         this.balance = Number(balance.confirmed);
+         this.unconfirmed_balance = Number(balance.unconfirmed);
+         this._lastBalanceFetch = +new Date();
+      }
     } catch (Error) {
       console.warn(Error);
     }
@@ -358,6 +386,110 @@ export class LegacyWallet extends AbstractWallet {
     this._lastTxFetch = +new Date();
   }
 
+  async fetchTaprootTransactions(): Promise<void> {
+    // Below is a simplified copypaste from HD electrum wallet
+    const _txsByExternalIndex: Transaction[] = [];
+
+    let addresses2fetch = await Taproot.getFundingAddresses(this.getID());
+    
+    //const addresses2fetch = address ? [address] : [];
+
+    // first: batch fetch for all addresses histories
+    const histories = await BlueElectrum.multiGetHistoryByAddress(addresses2fetch);
+    const txs: Record<
+      string,
+      {
+        tx_hash: string; // eslint-disable-line camelcase
+        height: number;
+        address: string;
+      }
+    > = {};
+    for (const history of Object.values(histories)) {
+      for (const tx of history) {
+        txs[tx.tx_hash] = tx;
+      }
+    }
+
+    if (this.getTransactions().length === 0 && Object.values(txs).length > 1000)
+      throw new Error('Addresses with history of > 1000 transactions are not supported');
+    // we check existing transactions, so if there are any then user is just using his wallet and gradually reaching the theshold, which
+    // is safe because in that case our cache is filled
+
+    // next, batch fetching each txid we got
+    const txdatas = await BlueElectrum.multiGetTransactionByTxid(Object.keys(txs));
+    const transactions = Object.values(txdatas);
+
+    // now, tricky part. we collect all transactions from inputs (vin), and batch fetch them too.
+    // then we combine all this data (we need inputs to see source addresses and amounts)
+    const vinTxids = [];
+    for (const txdata of transactions) {
+      for (const vin of txdata.vin) {
+        vinTxids.push(vin.txid);
+      }
+    }
+    const vintxdatas = await BlueElectrum.multiGetTransactionByTxid(vinTxids);
+
+    // fetched all transactions from our inputs. now we need to combine it.
+    // iterating all _our_ transactions:
+    const transactionsWithInputValue = transactions.map(tx => {
+      return {
+        ...tx,
+        vin: tx.vin.map(vin => {
+          const inpTxid = vin.txid;
+          const inpVout = vin.vout;
+          // got txid and output number of _previous_ transaction we shoud look into
+
+          if (vintxdatas[inpTxid] && vintxdatas[inpTxid].vout[inpVout]) {
+            return {
+              ...vin,
+              addresses: vintxdatas[inpTxid].vout[inpVout].scriptPubKey.addresses,
+              value: vintxdatas[inpTxid].vout[inpVout].value,
+            };
+          } else {
+            return vin;
+          }
+        }),
+      };
+    });
+
+    // now, we need to put transactions in all relevant `cells` of internal hashmaps: this.transactions_by_internal_index && this.transactions_by_external_index
+
+    for (const tx of transactionsWithInputValue) {
+      for (const vin of tx.vin) {
+        if ('addresses' in vin && vin.addresses && vin.addresses.indexOf(address || '') !== -1) {
+          // this TX is related to our address
+          const { vin, vout, ...txRest } = tx;
+          const clonedTx: Transaction = {
+            ...txRest,
+            inputs: [...vin],
+            outputs: [...vout],
+          };
+
+          jclonedTx = JSON.stringify(clonedTx);
+          console.log("vin Cloned TX : "+jclonedTx);
+          _txsByExternalIndex.push(clonedTx);
+        }
+      }
+      for (const vout of tx.vout) {
+        if (vout.scriptPubKey.addresses && vout.scriptPubKey.addresses.indexOf(address || '') !== -1) {
+          // this TX is related to our address
+          const { vin, vout, ...txRest } = tx;
+          const clonedTx: Transaction = {
+            ...txRest,
+            inputs: [...vin],
+            outputs: [...vout],
+          };
+
+          jclonedTx = JSON.stringify(clonedTx);
+          console.log("vout Cloned TX : "+jclonedTx);
+          _txsByExternalIndex.push(clonedTx);
+        }
+      }
+    }
+
+    this._txs_by_external_index = _txsByExternalIndex;
+    this._lastTxFetch = +new Date();
+  }
   getTransactions(): Transaction[] {
     // a hacky code reuse from electrum HD wallet:
     this._txs_by_external_index = this._txs_by_external_index || [];
@@ -675,6 +807,126 @@ export class LegacyWallet extends AbstractWallet {
     }
   }
 
+  signSigHashSchnorr(sighash: string, pubKey: string): string {
+
+    // need to find address based on the pub key we have 
+    // TODO, use more efficient way of finding  the private key given a pub key!
+
+    let address;
+    let pk;
+    let found = 0;
+
+    for (let index = 0; index <= 1000; index++) {
+       address = this._getExternalAddressByIndex(index);
+       pk = this._getPubkeyByAddress(address, index);
+       if (pk.toString('hex').substring(2) == pubKey) {
+          console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+          found = 1;
+          break;
+       }
+       else {
+          console.log("Address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+       }
+    }
+
+    if (found == 0) {
+       console.log("Unable to private key for pubKey : "+pubKey);
+       alert("Unable to find private key for pub key : "+pubKey);
+       return "";
+    }
+     
+    
+    const wif = this._getWIFbyAddress(address);
+    if (wif === null) throw new Error('Invalid address');
+    const keyPair = ECPair.fromWIF(wif);
+    const privateKey = keyPair.privateKey;
+    if (!privateKey) throw new Error('Invalid private key');
+
+    let msgBuffer = SchnorrBuffer.from(sighash, 'hex');
+    let privateKeyHex = privateKey.toString('hex');
+    console.log("Priv key : "+privateKeyHex);
+
+    const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
+
+    console.log("Schnorr signature of sighash : "+createdSignatureFromHex.toString('hex'));
+    return createdSignatureFromHex.toString('hex');
+  }
+
+  async findNextVaultSchnorrPubKey(address: string): string {
+
+    // get taproot info for this specific funding address ...
+    let taprootInfo = await Taproot.getFundingTxInfo(address);
+
+    console.log("findNextVaultSchnorrPubKey taproot info : "+JSON.stringify(taprootInfo));
+
+    // now get both the lender and borrower pub keys and try and find a match for this wallet
+    let bpk = taprootInfo.borrowerFundingPubKey;
+    let lpk = taprootInfo.lenderFundingPubKey;
+ 
+    let pk;
+    let spk;
+    let addr;
+    let addressIndex = 0;
+
+    // TODO, find better way to obtain list of pub keys!
+    for (let index = 0; index <= 1000; index++) {
+       addr = this._getExternalAddressByIndex(index);
+       pk = this._getPubkeyByAddress(addr, index);
+       spk = pk.toString('hex').substring(2);
+       if (spk === bpk || spk === lpk) {
+          addressIndex = index;
+          break;
+       }
+    }
+
+    addr = this._getInternalAddressByIndex(addressIndex);
+    pk = this._getPubkeyByAddress(addr, addressIndex);
+    spk = pk.toString('hex').substring(2);
+
+    console.log("chaange address pub key : "+spk+" lender pub key : "+lpk+" borrower pub key : "+bpk);
+    return spk;
+  }
+
+  async findFirstUnusedSchnorrPubKey(): string {
+
+    let usedPubKeys = await Taproot.findUsedPubKeys(this.getID());
+    if (usedPubKeys === null) {
+       usedPubKeys = [];
+    }
+       
+    console.log("Used pub keys : "+JSON.stringify(usedPubKeys));
+    
+    let address;
+    let pk;
+    let spk;
+
+    for (let index = 0; index <= 1000; index++) {
+       // TODO, need to determine if the pub key was previously used!
+       address = this._getExternalAddressByIndex(index);
+       pk = this._getPubkeyByAddress(address, index);
+       spk = pk.toString('hex').substring(2);
+
+       console.log("Checking if pub key has been used : "+spk);
+       // check if this key matches one of the used pub keys, and if so, skip it
+       var found = 0;
+       console.log("used pub key array size : "+usedPubKeys.length);
+
+       for (let index2 = 0; index2 < usedPubKeys.length; index2++) {
+          console.log("Used pub key ["+index2+"] : "+usedPubKeys[index2]);
+          if (usedPubKeys[index2] === spk) {
+             found = 1;
+             break;
+          }
+       }
+       if (found == 0) {
+          console.log("Returning unused pub key : "+spk);
+          return spk;
+       }
+    }
+  }
+
+  
+
   combinePubKeysForTaproot(pubKey1: string, pubKey2: string): string {
 
     const convert = schnorr.convert;
@@ -695,7 +947,7 @@ export class LegacyWallet extends AbstractWallet {
 
   }
 
-  generateSecretHash(pubKey: string): string {
+  generateSecretHashPreImage(pubKey: string, forFundingTx = 0): string {
 
     // need to find address based on the pub key we have 
     // TODO, use more efficient way of finding  the private key given a pub key!
@@ -705,7 +957,62 @@ export class LegacyWallet extends AbstractWallet {
     let found = 0;
 
     for (let index = 0; index <= 1000; index++) {
-       address = this._getExternalAddressByIndex(index);
+       if (forFundingTx == 0)
+          address = this._getExternalAddressByIndex(index);
+       else 
+          address = this._getInternalAddressByIndex(index);
+
+       pk = this._getPubkeyByAddress(address, index);
+       if (pk.toString('hex').substring(2) == pubKey) {
+          console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+          found = 1;
+          break;
+       }
+       else {
+          console.log("Address : "+address+" for pub key : "+pk.toString('hex').substring(2));
+       }
+    }
+
+    if (found == 0) {
+       console.log("Unable to private key for pubKey : "+pubKey);
+       alert("Unable to find private key for pub key : "+pubKey);
+       return "";
+    }
+     
+    let hash = bitcoin.crypto.sha256(Buffer.from(pubKey));
+    
+    const wif = this._getWIFbyAddress(address);
+    if (wif === null) throw new Error('Invalid address');
+    const keyPair = ECPair.fromWIF(wif);
+    const privateKey = keyPair.privateKey;
+    if (!privateKey) throw new Error('Invalid private key');
+
+    let msgBuffer = SchnorrBuffer.from(hash);
+    let privateKeyHex = privateKey.toString('hex');
+    console.log("Priv key : "+privateKeyHex);
+
+    const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
+
+    // now hash the signature, which becomes our pre-image
+    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex')));
+
+    return preImage.toString('hex');
+  }
+
+  generateSecretHash(pubKey: string, forFundingTx = 0 ): string {
+
+    // need to find address based on the pub key we have 
+    // TODO, use more efficient way of finding  the private key given a pub key!
+
+    let address;
+    let pk;
+    let found = 0;
+
+    for (let index = 0; index <= 1000; index++) {
+       if (forFundingTx == 0)
+          address = this._getExternalAddressByIndex(index);
+       else 
+          address = this._getInternalAddressByIndex(index);
        pk = this._getPubkeyByAddress(address, index);
        if (pk.toString('hex').substring(2) == pubKey) {
           console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));
@@ -748,6 +1055,24 @@ export class LegacyWallet extends AbstractWallet {
 
     return hashedPreImage.toString('hex');
   }
+
+  findVaultPubKey(pubKey: string): string {
+
+    // need to find address based on the pub key we have 
+ 
+    // TODO, use pubKey being passed in to find the corresponding change address pub key
+
+    let address;
+    let pk;
+    let found = 0;
+
+    address = this._getInternalAddressByIndex(0);
+    pk = this._getPubkeyByAddress(address, index);
+    return pk.toString('hex').substring(2);
+
+  }
+
+  /**
 
   /**
    * Verifies text message signature by address

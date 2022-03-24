@@ -130,6 +130,7 @@ export const BlueStorageProvider = ({ children }) => {
       console.log('fetch tx took', (end - start) / 1000, 'sec');
     } catch (err) {
       noErr = false;
+      
       console.warn(err);
     } finally {
       setWalletTransactionUpdateStatus(WalletTransactionsStatus.NONE);

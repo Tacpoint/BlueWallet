@@ -184,6 +184,8 @@ export const TransactionListItem = React.memo(({ item, itemPriceUnit = BitcoinUn
   const onPress = useCallback(async () => {
     menuRef?.current?.dismissMenu();
     if (item.hash) {
+      //console.log(JSON.stringify(item));
+      // TODO, retrieve funding tx info including pub keys, secret hash for this tx hash and pass into TransactionStatus ...
       navigate('TransactionStatus', { hash: item.hash, walletID });
     } else if (item.type === 'user_invoice' || item.type === 'payment_request' || item.type === 'paid_invoice') {
       const lightningWallet = wallets.filter(wallet => wallet?.getID() === item.walletID);

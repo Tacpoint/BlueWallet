@@ -28,7 +28,7 @@ import confirm from '../../helpers/confirm';
 const Taproot = require('../../blue_modules/Taproot');
 
 
-const AddPubKeys = () => {
+const GenerateVaultAddress = () => {
   const { colors } = useTheme();
 
   const { wallets, sleep } = useContext(BlueStorageContext);
@@ -39,19 +39,20 @@ const AddPubKeys = () => {
   const wallet = wallets.find(w => w.getID() === params.walletID);
 
   const [address, setAddress] = useState(params.address ?? '');
+  const [myPubKey, setMyPubKey] = useState('');
+
   const [borrowerPubKey, setBorrowerPubKey] = useState('');
-  const [borrowerSecretHash, setBorrowerSecretHash] = useState('');
+  const [lenderSecretHash, setLenderSecretHash] = useState('');
   const [lenderPubKey, setLenderPubKey] = useState('');
+  const [loanTerm, setLoanTerm] = useState('');
   const [message, setMessage] = useState('');
-  const [fundingAddress, setFundingAddress] = useState('');
+  const [vaultAddress, setVaultAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [messageHasFocus, setMessageHasFocus] = useState(false);
   const [isShareVisible, setIsShareVisible] = useState(false);
-
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
-  const mySecretHash = wallet.generateSecretHash(address);
-  const mySecretHashPreImage = wallet.generateSecretHashPreImage(address);
-
+  const [mySecretHash, setMySecretHash] = useState(''); 
+  const [mySecretHashPreImage, setMySecretHashPreImage] = useState('');
 
   useEffect(() => {
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setIsKeyboardVisible(true));
@@ -60,6 +61,24 @@ const AddPubKeys = () => {
       Keyboard.removeListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide');
       Keyboard.removeListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow');
     };
+  }, []);
+
+  useEffect(() => {
+
+    let vaultPubKey;
+    let secHash;
+    let secHashPreImage;
+
+    (async () => {
+        vaultPubKey = await wallet.findNextVaultSchnorrPubKey(address);
+        setMyPubKey(vaultPubKey);
+        secHash =  wallet.generateSecretHash(vaultPubKey, 1);
+        setMySecretHash(secHash);
+        secHashPreImage = wallet.generateSecretHashPreImage(vaultPubKey, 1);
+        setMySecretHashPreImage(secHashPreImage);
+    })();
+
+     
   }, []);
 
   const stylesHooks = StyleSheet.create({
@@ -114,10 +133,10 @@ const AddPubKeys = () => {
             </>
           )}
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={address} />
+          <BlueFormLabel>{loc.taproot.my_vault_pub_key}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={myPubKey} />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_secret_hash}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.my_vault_hashed_secret}</BlueFormLabel>
           <BlueCopyTextToClipboard text={mySecretHash} />
 
           <BlueFormLabel>{loc.addresses.add_pubs_placeholder_address}</BlueFormLabel>
@@ -137,15 +156,15 @@ const AddPubKeys = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_borrower_secret_hash}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.lender_secret_hash}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_borrower_secret_hash}
+            placeholder={loc.taproot.lender_secret_hash}
             placeholderTextColor="#81868e"
-            value={borrowerSecretHash}
-            onChangeText={t => setBorrowerSecretHash(t.replace('\n', ''))}
+            value={lenderSecretHash}
+            onChangeText={t => setLenderSecretHash(t.replace('\n', ''))}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -169,16 +188,32 @@ const AddPubKeys = () => {
             editable={!loading}
           />
           <BlueSpacing10 />
-
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_message}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.loan_term}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_message}
+            placeholder={loc.taproot.loan_term}
             placeholderTextColor="#81868e"
-            value={fundingAddress}
-            onChangeText={t => setFundingAddress(t.replace('\n', ''))}
+            value={loanTerm}
+            onChangeText={t => setLoanTerm(t.replace('\n', ''))}
+            style={[styles.text, stylesHooks.text]}
+            autoCorrect={false}
+            autoCapitalize="none"
+            spellCheck={false}
+            editable={!loading}
+          />
+          <BlueSpacing10 />
+
+          <BlueFormLabel>{loc.taproot.vault_deposit_address}</BlueFormLabel>
+          <TextInput
+            multiline
+            textAlignVertical="top"
+            blurOnSubmit
+            placeholder={loc.taproot.vault_deposit_address}
+            placeholderTextColor="#81868e"
+            value={vaultAddress}
+            onChangeText={t => setVaultAddress(t.replace('\n', ''))}
             testID="Message"
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
@@ -243,12 +278,12 @@ const AddPubKeys = () => {
   );
 };
 
-AddPubKeys.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+GenerateVaultAddress.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.addresses.add_pubs_title,
+  title: loc.taproot.create_vault_address_title,
 }));
 
-export default AddPubKeys;
+export default GenerateVaultAddress;
 
 const styles = StyleSheet.create({
   root: {

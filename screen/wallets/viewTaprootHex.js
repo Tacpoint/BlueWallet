@@ -7,11 +7,14 @@ import {
   LayoutAnimation,
   Platform,
   StatusBar,
+  TouchableOpacity,
+  Text,
   StyleSheet,
   TextInput,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { useRoute, useTheme, useNavigation } from '@react-navigation/native';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { Icon } from 'react-native-elements';
@@ -28,30 +31,23 @@ import confirm from '../../helpers/confirm';
 const Taproot = require('../../blue_modules/Taproot');
 
 
-const AddPubKeys = () => {
+const ViewTaprootHex = () => {
+
   const { colors } = useTheme();
 
   const { wallets, sleep } = useContext(BlueStorageContext);
   const { params } = useRoute();
+  const wallet = wallets.find(w => w.getID() === params.walletID);
   const navigation = useNavigation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  const wallet = wallets.find(w => w.getID() === params.walletID);
+  const [signedTx, setSignedTx] = useState(params.signedTx ?? '');
 
-  const [address, setAddress] = useState(params.address ?? '');
-  const [borrowerPubKey, setBorrowerPubKey] = useState('');
-  const [borrowerSecretHash, setBorrowerSecretHash] = useState('');
-  const [lenderPubKey, setLenderPubKey] = useState('');
   const [message, setMessage] = useState('');
-  const [fundingAddress, setFundingAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [messageHasFocus, setMessageHasFocus] = useState(false);
   const [isShareVisible, setIsShareVisible] = useState(false);
-
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
-  const mySecretHash = wallet.generateSecretHash(address);
-  const mySecretHashPreImage = wallet.generateSecretHashPreImage(address);
-
 
   useEffect(() => {
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setIsKeyboardVisible(true));
@@ -72,17 +68,21 @@ const AddPubKeys = () => {
       backgroundColor: colors.inputBackgroundColor,
       color: colors.foregroundColor,
     },
+    cardText: {
+      color: colors.foregroundColor,
+    },
   });
 
 
-  const handleGenerateFundingTxAddress = async () => {
+  const handleBroadcastTx = async () => {
     setLoading(true);
     await sleep(10); // wait for loading indicator to appear
     try {
-      let taprootKey = wallet.combinePubKeysForTaproot(borrowerPubKey, lenderPubKey);
-      let data = await Taproot.createFundingTxAddress(taprootKey, borrowerPubKey, lenderPubKey, borrowerSecretHash, wallet.getID());   
 
-      setFundingAddress(data);
+        let result = await wallet.broadcastTx(signedTx);
+        console.log("Broadcast tx result : "+JSON.stringify(result));
+        alert("Your transaction has been successfully submitted to the network.");
+
     } catch (e) {
       ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
       Alert.alert(loc.errors.error, e.message);
@@ -114,105 +114,33 @@ const AddPubKeys = () => {
             </>
           )}
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={address} />
-
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_secret_hash}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={mySecretHash} />
-
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_address}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_address}
-            placeholderTextColor="#81868e"
-            value={borrowerPubKey}
-            onChangeText={t => setBorrowerPubKey(t.replace('\n', ''))}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
-
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_borrower_secret_hash}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_borrower_secret_hash}
-            placeholderTextColor="#81868e"
-            value={borrowerSecretHash}
-            onChangeText={t => setBorrowerSecretHash(t.replace('\n', ''))}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_lender_pub_key}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_lender_pub_key}
-            placeholderTextColor="#81868e"
-            value={lenderPubKey}
-            onChangeText={t => setLenderPubKey(t.replace('\n', ''))}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
-
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_message}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_message}
-            placeholderTextColor="#81868e"
-            value={fundingAddress}
-            onChangeText={t => setFundingAddress(t.replace('\n', ''))}
-            testID="Message"
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
-
-          {isShareVisible && !isKeyboardVisible && (
-            <>
-              <FContainer inline>
-                <FButton
-                  onPress={handleShare}
-                  text={loc.multisig.share}
-                  icon={
-                    <View style={styles.buttonsIcon}>
-                      <Icon name="external-link" size={16} type="font-awesome" color={colors.buttonAlternativeTextColor} />
-                    </View>
-                  }
-                />
-              </FContainer>
-              <BlueSpacing10 />
-            </>
-          )}
-
           {!isKeyboardVisible && (
             <>
+              <BlueSpacing10 />
+              <BlueSpacing10 />
               <FContainer inline>
-                <FButton onPress={handleGenerateFundingTxAddress} text={loc.addresses.add_pubs_combine} disabled={loading} />
+                 <BlueSpacing10 />
+                 <BlueText style={[styles.cardText, stylesHooks.cardText]}>{loc.send.create_this_is_hex}</BlueText>
+                 <BlueSpacing10 />
               </FContainer>
               <BlueSpacing10 />
+              <BlueSpacing10 />
+              <TextInput style={styles.cardTx} multiline editable={false} value={signedTx} />
+              <BlueSpacing10 />
+
+              <TouchableOpacity accessibilityRole="button" style={styles.actionTouch} onPress={() => Clipboard.setString(signedTx)}>
+                 <Text style={styles.actionText}>{loc.send.create_copy}</Text>
+              </TouchableOpacity>
+
+              <BlueSpacing10 />
+              <BlueSpacing10 />
+
+              <FContainer inline>
+                <FButton onPress={handleBroadcastTx} text={loc.taproot.broadcast_tx} disabled={loading} />
+              </FContainer>
             </>
           )}
+
 
           {Platform.select({
             ios: (
@@ -243,14 +171,15 @@ const AddPubKeys = () => {
   );
 };
 
-AddPubKeys.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+ViewTaprootHex.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.addresses.add_pubs_title,
+  title: loc.taproot.spend_as_borrower_title,
 }));
 
-export default AddPubKeys;
+export default ViewTaprootHex;
 
 const styles = StyleSheet.create({
+  
   root: {
     flex: 1,
   },
@@ -291,6 +220,25 @@ const styles = StyleSheet.create({
   },
   txId: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  actionTouch: {
+    marginVertical: 24,
+    paddingHorizontal: 16,
+  },
+  cardTx: {
+    borderColor: '#ebebeb',
+    backgroundColor: '#d2f8d6',
+    borderRadius: 4,
+    marginTop: 20,
+    color: '#37c0a1',
+    fontWeight: '500',
+    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 16,
+  },
+  cardText: {
     fontWeight: '500',
   },
 });

@@ -11,6 +11,7 @@ const bitcoin = require('bitcoinjs-lib');
 const BlueElectrum = require('../../blue_modules/BlueElectrum');
 const HDNode = require('bip32');
 const reverse = require('buffer-reverse');
+const Taproot = require('../../blue_modules/Taproot');
 
 /**
  * Electrum - means that it utilizes Electrum protocol for blockchain data
@@ -39,11 +40,14 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
     let ret = 0;
     for (const bal of Object.values(this._balances_by_external_index)) {
+      //console.log("adding balance from external index : "+bal.c);
       ret += bal.c;
     }
     for (const bal of Object.values(this._balances_by_internal_index)) {
+      //console.log("adding balance from internal index : "+bal.c);
       ret += bal.c;
     }
+    //console.log("balance summation : "+ret);
     return ret + (this.getUnconfirmedBalance() < 0 ? this.getUnconfirmedBalance() : 0);
   }
 
@@ -201,6 +205,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
    * @inheritDoc
    */
   async fetchTransactions() {
+
+    //console.log("Inside fetchTransactions() ...");
     // if txs are absent for some internal address in hierarchy - this is a sign
     // we should fetch txs for that address
     // OR if some address has unconfirmed balance - should fetch it's txs
@@ -213,40 +219,52 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     // then we combine it all together
 
     const addresses2fetch = [];
+    var spentAddresses = {};
 
-    for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
-      // external addresses first
-      let hasUnconfirmed = false;
-      this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
-      for (const tx of this._txs_by_external_index[c]) hasUnconfirmed = hasUnconfirmed || !tx.confirmations || tx.confirmations < 7;
+    // for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
+    //   // external addresses first
+    //   let hasUnconfirmed = false;
+    //   this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
+    //   for (const tx of this._txs_by_external_index[c]) hasUnconfirmed = hasUnconfirmed || !tx.confirmations || tx.confirmations < 7;
 
-      if (hasUnconfirmed || this._txs_by_external_index[c].length === 0 || this._balances_by_external_index[c].u !== 0) {
-        addresses2fetch.push(this._getExternalAddressByIndex(c));
-      }
-    }
+    //   if (hasUnconfirmed || this._txs_by_external_index[c].length === 0 || this._balances_by_external_index[c].u !== 0) {
+    //     addresses2fetch.push(this._getExternalAddressByIndex(c));
+    //   }
+    // }
 
-    for (let c = 0; c < this.next_free_change_address_index + this.gap_limit; c++) {
-      // next, internal addresses
-      let hasUnconfirmed = false;
-      this._txs_by_internal_index[c] = this._txs_by_internal_index[c] || [];
-      for (const tx of this._txs_by_internal_index[c]) hasUnconfirmed = hasUnconfirmed || !tx.confirmations || tx.confirmations < 7;
+    // for (let c = 0; c < this.next_free_change_address_index + this.gap_limit; c++) {
+    //   // next, internal addresses
+    //   let hasUnconfirmed = false;
+    //   this._txs_by_internal_index[c] = this._txs_by_internal_index[c] || [];
+    //   for (const tx of this._txs_by_internal_index[c]) hasUnconfirmed = hasUnconfirmed || !tx.confirmations || tx.confirmations < 7;
 
-      if (hasUnconfirmed || this._txs_by_internal_index[c].length === 0 || this._balances_by_internal_index[c].u !== 0) {
-        addresses2fetch.push(this._getInternalAddressByIndex(c));
-      }
-    }
+    // if (hasUnconfirmed || this._txs_by_internal_index[c].length === 0 || this._balances_by_internal_index[c].u !== 0) {
+    //    addresses2fetch.push(this._getInternalAddressByIndex(c));
+    //  }
+    //}
 
     // first: batch fetch for all addresses histories
+
+    //console.log("Getting funding addresses for wallet : "+this.getID());
+    let knownFundingAddresses = await Taproot.getFundingAddresses(this.getID());
+    for (const tfa of knownFundingAddresses) {
+       //console.log("Adding taproot funding address to list of addresses to Fetch : "+tfa);
+       addresses2fetch.push(tfa);
+    }
+
     const histories = await BlueElectrum.multiGetHistoryByAddress(addresses2fetch);
+    //console.log("Done calling BlueElectrum.multiGetHistoryByAddress ...");
     const txs = {};
     for (const history of Object.values(histories)) {
       for (const tx of history) {
+        //console.log("Received tx from electrum : "+JSON.stringify(tx));
         txs[tx.tx_hash] = tx;
       }
     }
 
     // next, batch fetching each txid we got
     const txdatas = await BlueElectrum.multiGetTransactionByTxid(Object.keys(txs));
+    //console.log("Done calling BlueElectrum.multiGetTransactionByTxid ...");
 
     // now, tricky part. we collect all transactions from inputs (vin), and batch fetch them too.
     // then we combine all this data (we need inputs to see source addresses and amounts)
@@ -257,6 +275,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
       }
     }
     const vintxdatas = await BlueElectrum.multiGetTransactionByTxid(vinTxids);
+    //console.log("Done calling BlueElectrum.multiGetTransactionByTxid 2 ...");
 
     // fetched all transactions from our inputs. now we need to combine it.
     // iterating all _our_ transactions:
@@ -276,15 +295,120 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
     // now purge all unconfirmed txs from internal hashmaps, since some may be evicted from mempool because they became invalid
     // or replaced. hashmaps are going to be re-populated anyways, since we fetched TXs for addresses with unconfirmed TXs
-    for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
-      this._txs_by_external_index[c] = this._txs_by_external_index[c].filter(tx => !!tx.confirmations);
-    }
-    for (let c = 0; c < this.next_free_change_address_index + this.gap_limit; c++) {
-      this._txs_by_internal_index[c] = this._txs_by_internal_index[c].filter(tx => !!tx.confirmations);
-    }
+    //for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
+    //  this._txs_by_external_index[c] = this._txs_by_external_index[c].filter(tx => !!tx.confirmations);
+    //}
+    //for (let c = 0; c < this.next_free_change_address_index + this.gap_limit; c++) {
+    //  this._txs_by_internal_index[c] = this._txs_by_internal_index[c].filter(tx => !!tx.confirmations);
+    //}
 
     // now, we need to put transactions in all relevant `cells` of internal hashmaps: this._txs_by_internal_index && this._txs_by_external_index
 
+    
+    let runningWalletBalance = 0;
+
+
+    for (let c = 0; c < knownFundingAddresses.length; c++) {
+
+      runningWalletBalance = 0;
+
+      for (const tx of Object.values(txdatas)) {
+        //console.log("tx received : "+JSON.stringify(tx));
+
+
+        for (const vin of tx.vin) {
+          //console.log("vin.addresses : "+JSON.stringify(vin.addresses));
+          //console.log("Checking if vin.addresses contains current funding tx address : "+knownFundingAddresses[c]);
+          if (vin.addresses && vin.addresses.indexOf(knownFundingAddresses[c]) !== -1) {
+            //console.log("vin.addresses contains funding tx address : "+knownFundingAddresses[c]);
+            // this TX is related to our address
+            this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
+            const clonedTx = Object.assign({}, tx);
+            clonedTx.inputs = tx.vin.slice(0);
+            clonedTx.outputs = tx.vout.slice(0);
+            delete clonedTx.vin;
+            delete clonedTx.vout;
+
+            runningWalletBalance -= vin.value * 100000000;
+            spentAddresses[knownFundingAddresses[c]] = tx.txid;
+            clonedTx.spent = true;
+            clonedTx.spendingtxid = tx.txid;
+            //console.log("Funding tx was spent with the following tx id : "+clonedTx.spendingtxid);
+            console.log("Removing balance from vin value ["+vin.value+" for address : "+knownFundingAddresses[c]);
+
+
+            // trying to replace tx if it exists already (because it has lower confirmations, for example)
+            let replaced = false;
+            for (let cc = 0; cc < this._txs_by_external_index[c].length; cc++) {
+              if (this._txs_by_external_index[c][cc].txid === clonedTx.txid) {
+                replaced = true;
+                this._txs_by_external_index[c][cc] = clonedTx;
+              }
+            }
+            if (!replaced) this._txs_by_external_index[c].push(clonedTx);
+          }
+        }
+
+
+        for (const vout of tx.vout) {
+          //console.log("vout: "+JSON.stringify(vout));
+          //console.log("vout.value : "+JSON.stringify(vout.value));
+          //console.log("Checking if vout.scriptPubKey.addresses contains current funding tx address : "+knownFundingAddresses[c]);
+          if (vout.scriptPubKey.addresses && vout.scriptPubKey.addresses.indexOf(knownFundingAddresses[c]) !== -1) {
+            // this TX is related to our address
+            //console.log("Found vout address match for funding tx address : "+knownFundingAddresses[c]);
+            this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
+            const clonedTx = Object.assign({}, tx);
+            clonedTx.taprootfundingaddress = knownFundingAddresses[c];
+            clonedTx.inputs = tx.vin.slice(0);
+            clonedTx.outputs = tx.vout.slice(0);
+            delete clonedTx.vin;
+            delete clonedTx.vout;
+
+            runningWalletBalance += vout.value * 100000000;
+            console.log("Adding balance from vout value ["+vout.value+" for address : "+knownFundingAddresses[c]);
+
+
+            // trying to replace tx if it exists already (because it has lower confirmations, for example)
+            let replaced = false;
+            for (let cc = 0; cc < this._txs_by_external_index[c].length; cc++) {
+              if (this._txs_by_external_index[c][cc].txid === clonedTx.txid) {
+                replaced = true;
+                this._txs_by_external_index[c][cc] = clonedTx;
+              }
+            }
+            if (!replaced) this._txs_by_external_index[c].push(clonedTx);
+          }
+        }
+      }
+  
+      // need to loop through the tx set and mark any funding or vault txns as spent where applicable
+      for (const [spentAddress, spentTxId] of Object.entries(spentAddresses)) {
+         console.log("SPENT ADDRS : "+spentAddress, spentTxId);
+       
+         for (const [txkey, txvalue] of Object.entries(this._txs_by_external_index)) {
+            for (let cc = 0; cc < this._txs_by_external_index[txkey].length; cc++) {
+              console.log("Existing tx taprootfundingaddress : "+this._txs_by_external_index[txkey][cc].taprootfundingaddress);
+              console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
+              if (this._txs_by_external_index[txkey][cc].taprootfundingaddress === spentAddress) {
+                 this._txs_by_external_index[txkey][cc].spent = true;
+                 this._txs_by_external_index[txkey][cc].spendingtxid = spentTxId;
+              }
+            }
+         }
+      } 
+
+      // Taproot set balance for future use!
+      console.log("Final wallet balance : "+runningWalletBalance);
+      this._balances_by_external_index[c] = {
+         c: runningWalletBalance,
+         u: 0,
+      };
+
+    }
+
+
+    /*
     for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
       for (const tx of Object.values(txdatas)) {
         for (const vin of tx.vin) {
@@ -318,6 +442,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vin;
             delete clonedTx.vout;
 
+
             // trying to replace tx if it exists already (because it has lower confirmations, for example)
             let replaced = false;
             for (let cc = 0; cc < this._txs_by_external_index[c].length; cc++) {
@@ -331,7 +456,10 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
         }
       }
     }
+    */
 
+    // change addresses ...
+    /*
     for (let c = 0; c < this.next_free_change_address_index + this.gap_limit; c++) {
       for (const tx of Object.values(txdatas)) {
         for (const vin of tx.vin) {
@@ -378,11 +506,15 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
         }
       }
     }
+    */
 
     this._lastTxFetch = +new Date();
   }
 
   getTransactions() {
+
+
+    //console.log("wallet.getTransactions() being called for wallet ID : "+this.getID());
     let txs = [];
 
     for (const addressTxs of Object.values(this._txs_by_external_index)) {
@@ -396,11 +528,13 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
     //alert("secret:"+this.secret);
     //alert(this._getSeed().toString('hex'));
-    console.log("seed : "+this._getSeed().toString('hex'));
+    //console.log("seed : "+this._getSeed().toString('hex'));
 
     // its faster to pre-build hashmap of owned addresses than to query `this.weOwnAddress()`, which in turn
     // iterates over all addresses in hierarchy
     const ownedAddressesHashmap = {};
+
+    /*
     for (let c = 0; c < this.next_free_address_index + 1; c++) {
       ownedAddressesHashmap[this._getExternalAddressByIndex(c)] = true;
     }
@@ -409,6 +543,23 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     }
     // hack: in case this code is called from LegacyWallet:
     if (this.getAddress()) ownedAddressesHashmap[this.getAddress()] = true;
+    */
+
+    //
+    // need to modify this logic to work with our Taproot funding and vault txns!
+    // since the "ownedAddressesHashmap" won't contain addresses derived from the seed!
+    //
+    //ownedAddressesHashmap['bc1peetkcz7ztg9trjeys5zscm0w09jxmlsd94mywr7knulz23ywmxpq49ljqm'] = true;
+    //ownedAddressesHashmap['bcrt1puntjr30t80j9yp6ms3jgmrh4ejnjp5c6em8qf5wje7k7qt72gptskztpm8'] = true;
+
+    // we stored the funding and vault addresses in the tx object.
+    // now, loop through and place each in the ownedAddressHashmap.
+    for (const tx of txs) {
+       if (tx.taprootfundingaddress) {
+          //console.log("Adding taproot funding address to list of owned addresses : "+tx.taprootfundingaddress);
+          ownedAddressesHashmap[tx.taprootfundingaddress] = true;
+       }
+    }
 
     const ret = [];
     for (const tx of txs) {
@@ -448,6 +599,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     return ret2.sort(function (a, b) {
       return b.received - a.received;
     });
+
+
   }
 
   async _binarySearchIterationForInternalAddress(index) {
@@ -462,6 +615,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     let lastChunkWithUsedAddressesNum = null;
     let lastHistoriesWithUsedAddresses = null;
     for (let c = 0; c < Math.round(index / this.gap_limit); c++) {
+      //console.log("Calling BlueElectrum.multiGetHistoryByAddress");
       const histories = await BlueElectrum.multiGetHistoryByAddress(gerenateChunkAddresses(c));
       if (this.constructor._getTransactionsFromHistories(histories).length > 0) {
         // in this particular chunk we have used addresses
@@ -536,12 +690,14 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
   async fetchBalance() {
     try {
+      //console.log("About to call this._fetchBalance()");
       if (this.next_free_change_address_index === 0 && this.next_free_address_index === 0) {
         // doing binary search for last used address:
         this.next_free_change_address_index = await this._binarySearchIterationForInternalAddress(1000);
         this.next_free_address_index = await this._binarySearchIterationForExternalAddress(1000);
       } // end rescanning fresh wallet
 
+ 
       // finally fetching balance
       await this._fetchBalance();
     } catch (err) {
@@ -549,19 +705,28 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     }
   }
 
+
   async _fetchBalance() {
     // probing future addressess in hierarchy whether they have any transactions, in case
     // our 'next free addr' pointers are lagging behind
     // for that we are gona batch fetch history for all addresses between last used and last used + gap_limit
 
     const lagAddressesToFetch = [];
-    for (let c = this.next_free_address_index; c < this.next_free_address_index + this.gap_limit; c++) {
-      lagAddressesToFetch.push(this._getExternalAddressByIndex(c));
-    }
-    for (let c = this.next_free_change_address_index; c < this.next_free_change_address_index + this.gap_limit; c++) {
-      lagAddressesToFetch.push(this._getInternalAddressByIndex(c));
+    //for (let c = this.next_free_address_index; c < this.next_free_address_index + this.gap_limit; c++) {
+    //  lagAddressesToFetch.push(this._getExternalAddressByIndex(c));
+    //}
+    //for (let c = this.next_free_change_address_index; c < this.next_free_change_address_index + this.gap_limit; c++) {
+    //  lagAddressesToFetch.push(this._getInternalAddressByIndex(c));
+    //}
+
+    // fetch Taproot funding and vault addresses!
+    let knownFundingAddresses = await Taproot.getFundingAddresses(this.getID());
+    for (const tfa of knownFundingAddresses) {
+          //console.log("Adding taproot funding address to list of addresses to fetch : "+tfa);
+          lagAddressesToFetch.push(tfa);
     }
 
+    //console.log("_fetchBalance() - calling electrum for addresses : "+lagAddressesToFetch.toString());
     const txs = await BlueElectrum.multiGetHistoryByAddress(lagAddressesToFetch); // <------ electrum call
 
     for (let c = this.next_free_address_index; c < this.next_free_address_index + this.gap_limit; c++) {

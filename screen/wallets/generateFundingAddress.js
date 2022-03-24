@@ -28,11 +28,12 @@ import confirm from '../../helpers/confirm';
 const Taproot = require('../../blue_modules/Taproot');
 
 
-const AddPubKeys = () => {
+const GenerateFundingAddress = () => {
   const { colors } = useTheme();
 
   const { wallets, sleep } = useContext(BlueStorageContext);
   const { params } = useRoute();
+
   const navigation = useNavigation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
@@ -49,9 +50,9 @@ const AddPubKeys = () => {
   const [isShareVisible, setIsShareVisible] = useState(false);
 
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
+
   const mySecretHash = wallet.generateSecretHash(address);
   const mySecretHashPreImage = wallet.generateSecretHashPreImage(address);
-
 
   useEffect(() => {
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setIsKeyboardVisible(true));
@@ -114,18 +115,18 @@ const AddPubKeys = () => {
             </>
           )}
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_pub_key}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.my_taproot_pub_key}</BlueFormLabel>
           <BlueCopyTextToClipboard text={address} />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_my_secret_hash}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.my_secret_hash}</BlueFormLabel>
           <BlueCopyTextToClipboard text={mySecretHash} />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_address}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.borrower_pub_key}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_address}
+            placeholder={loc.taproot.borrower_pub_key}
             placeholderTextColor="#81868e"
             value={borrowerPubKey}
             onChangeText={t => setBorrowerPubKey(t.replace('\n', ''))}
@@ -137,12 +138,12 @@ const AddPubKeys = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_borrower_secret_hash}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.borrower_secret_hash}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_borrower_secret_hash}
+            placeholder={loc.taproot.borrower_secret_hash}
             placeholderTextColor="#81868e"
             value={borrowerSecretHash}
             onChangeText={t => setBorrowerSecretHash(t.replace('\n', ''))}
@@ -153,12 +154,12 @@ const AddPubKeys = () => {
             editable={!loading}
           />
           <BlueSpacing10 />
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_lender_pub_key}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.lender_pub_key}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_lender_pub_key}
+            placeholder={loc.taproot.lender_pub_key}
             placeholderTextColor="#81868e"
             value={lenderPubKey}
             onChangeText={t => setLenderPubKey(t.replace('\n', ''))}
@@ -170,23 +171,8 @@ const AddPubKeys = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_message}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.addresses.add_pubs_placeholder_message}
-            placeholderTextColor="#81868e"
-            value={fundingAddress}
-            onChangeText={t => setFundingAddress(t.replace('\n', ''))}
-            testID="Message"
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
+          <BlueFormLabel>{loc.taproot.funding_deposit_address}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingAddress} />
 
           {isShareVisible && !isKeyboardVisible && (
             <>
@@ -208,7 +194,7 @@ const AddPubKeys = () => {
           {!isKeyboardVisible && (
             <>
               <FContainer inline>
-                <FButton onPress={handleGenerateFundingTxAddress} text={loc.addresses.add_pubs_combine} disabled={loading} />
+                <FButton onPress={handleGenerateFundingTxAddress} text={loc.taproot.create_funding_address_title} disabled={loading} />
               </FContainer>
               <BlueSpacing10 />
             </>
@@ -243,12 +229,12 @@ const AddPubKeys = () => {
   );
 };
 
-AddPubKeys.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+GenerateFundingAddress.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.addresses.add_pubs_title,
+  title: loc.taproot.create_funding_address_title,
 }));
 
-export default AddPubKeys;
+export default GenerateFundingAddress;
 
 const styles = StyleSheet.create({
   root: {

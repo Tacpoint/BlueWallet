@@ -680,12 +680,16 @@ export class AppStorage {
       let c = 0;
       for (const wallet of this.wallets) {
         if (c++ === index) {
-          await wallet.fetchBalance();
+          console.log("Calling wallet.fetchTaprootBalance ...");
+          await wallet.fetchTaprootBalance();
+          //await wallet.fetchBalance();
         }
       }
     } else {
       for (const wallet of this.wallets) {
-        await wallet.fetchBalance();
+        console.log("Calling wallet.fetchTaprootBalance ...");
+        await wallet.fetchTaprootBalance();
+        //await wallet.fetchBalance();
       }
     }
   };
@@ -706,6 +710,7 @@ export class AppStorage {
       let c = 0;
       for (const wallet of this.wallets) {
         if (c++ === index) {
+          console.log("About to fetch txns for wallet : "+c);
           await wallet.fetchTransactions();
           if (wallet.fetchPendingTransactions) {
             await wallet.fetchPendingTransactions();
@@ -717,7 +722,9 @@ export class AppStorage {
       }
     } else {
       for (const wallet of this.wallets) {
+        console.log("About to fetch txns for wallet : "+wallet.label);
         await wallet.fetchTransactions();
+        console.log("Done fetching txns for wallet : "+wallet.label);
         if (wallet.fetchPendingTransactions) {
           await wallet.fetchPendingTransactions();
         }
