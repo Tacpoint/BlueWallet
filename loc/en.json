@@ -182,7 +182,8 @@
     "details_label": "Description",
     "details_setAmount": "Receive with amount",
     "details_share": "Share",
-    "header": "Create Funding Address"
+    "header": "Key Details",
+    "create_funding_address": "Generate Funding Address"
   },
   "send": {
     "provided_address_is_invoice": "This address appears to be for a Lightning invoice. Please, go to your Lightning wallet in order to make a payment for this invoice.",
@@ -561,11 +562,23 @@
     "spend_as_borrower_title": "Spend from Funding Tx as Borrower",
     "spend_funding_tx_as_lender_title": "Move Funding tx BTC to Vault",
     "spend_funding_tx_borrower": "Spend as Borrower",
+    "borrower_sig": "Borrower signature",
     "view_spending_tx": "View Spending Tx",
     "generate_vault_address": "Generate Vault Address",
     "generate_borrower_sig_for_lender_funding_spend": "Generate Borrower Sig",
     "spend_funding_tx_lender": "Spend as Lender",
+    "missing_vault_address": "Please generate a vault address before continuing with this operation.",
+
     "my_taproot_pub_key": "My Taproot Public Key:",
+    "current_key_hash": "Current Key Hash:",
+    "current_key_pre_image": "Current Key Pre-image:",
+
+
+    "vault_pub_key": "Vault Pub Key:",
+    "vault_hash": "Vault Secret Hash:",
+    "vault_pre_image": "Vault Secret Hash Pre-Image:",
+    "vault_address": "Vault Deposit Address:",
+
     "taproot": "Taproot",
     "default_label": "Taproot",
     "taproot_explain": "Compose Tapscript transactions",
@@ -766,8 +779,8 @@
     "sign_aopp_title": "AOPP",
     "sign_aopp_confirm": "Do you want to send a signed message to {hostname}?",
     "addresses_title": "Public Keys",
-    "type_change": "Lend",
-    "type_receive": "Borrow",
+    "type_change": "Vault",
+    "type_receive": "Funding",
     "type_used": "Used",
     "transactions": "Transactions"
   },

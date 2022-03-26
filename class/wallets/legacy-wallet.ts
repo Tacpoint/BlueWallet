@@ -852,7 +852,7 @@ export class LegacyWallet extends AbstractWallet {
     return createdSignatureFromHex.toString('hex');
   }
 
-  async findNextVaultSchnorrPubKey(address: string): string {
+  async findVaultSchnorrPubKey(address: string): string {
 
     // get taproot info for this specific funding address ...
     let taprootInfo = await Taproot.getFundingTxInfo(address);
@@ -883,7 +883,7 @@ export class LegacyWallet extends AbstractWallet {
     pk = this._getPubkeyByAddress(addr, addressIndex);
     spk = pk.toString('hex').substring(2);
 
-    console.log("chaange address pub key : "+spk+" lender pub key : "+lpk+" borrower pub key : "+bpk);
+    console.log("Vault address pub key : "+spk+" lender pub key : "+lpk+" borrower pub key : "+bpk);
     return spk;
   }
 
@@ -900,28 +900,24 @@ export class LegacyWallet extends AbstractWallet {
     let pk;
     let spk;
 
+    //TODO, use while loop to ensure we find an unused key!
     for (let index = 0; index <= 1000; index++) {
+
        // TODO, need to determine if the pub key was previously used!
        address = this._getExternalAddressByIndex(index);
        pk = this._getPubkeyByAddress(address, index);
        spk = pk.toString('hex').substring(2);
 
-       console.log("Checking if pub key has been used : "+spk);
+       console.log("Checking if pub key has been used : "+spk+" index counter : "+index);
        // check if this key matches one of the used pub keys, and if so, skip it
-       var found = 0;
-       console.log("used pub key array size : "+usedPubKeys.length);
 
-       for (let index2 = 0; index2 < usedPubKeys.length; index2++) {
-          console.log("Used pub key ["+index2+"] : "+usedPubKeys[index2]);
-          if (usedPubKeys[index2] === spk) {
-             found = 1;
-             break;
-          }
+       if (usedPubKeys.includes(spk)) {
+          console.log("findFirstUnusedSchnorrPubKey - pub key : "+spk+" found in usedPubKeys array.");
+          continue;
        }
-       if (found == 0) {
-          console.log("Returning unused pub key : "+spk);
-          return spk;
-       }
+
+       console.log("Returning unused pub key : "+spk+" index : "+index);
+       return spk;
     }
   }
 
@@ -994,7 +990,9 @@ export class LegacyWallet extends AbstractWallet {
     const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
 
     // now hash the signature, which becomes our pre-image
-    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex')));
+    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex'),'hex'));
+
+    console.log("Pre-image : "+preImage.toString('hex'));
 
     return preImage.toString('hex');
   }
@@ -1045,10 +1043,10 @@ export class LegacyWallet extends AbstractWallet {
     const createdSignatureFromHex = schnorr.sign(privateKeyHex, msgBuffer); 
 
     // now hash the signature, which becomes our pre-image
-    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex')));
+    let preImage = bitcoin.crypto.sha256(Buffer.from(createdSignatureFromHex.toString('hex'),'hex'));
 
     // hash the pre-image which becomes our "secret" we provide to the lender or borrower
-    let hashedPreImage = bitcoin.crypto.sha256(Buffer.from(preImage.toString('hex')));
+    let hashedPreImage = bitcoin.crypto.sha256(Buffer.from(preImage.toString('hex'),'hex'));
 
     console.log("Pre-image hash : "+preImage.toString('hex'));
     console.log("Secret hash : "+hashedPreImage.toString('hex'));

@@ -315,7 +315,7 @@ async function getRandomDynamicPeer() {
  */
 module.exports.getBalanceByAddress = async function (address) {
   if (!mainClient) throw new Error('Electrum client is not connected');
-  console.log("About to lookup baalance for address : "+address);
+  console.log("About to lookup balance for address : "+address);
   const script = bitcoin.address.toOutputScript(address,bitcoin.networks.regtest);
   const hash = bitcoin.crypto.sha256(script);
   const reversedHash = Buffer.from(reverse(hash));

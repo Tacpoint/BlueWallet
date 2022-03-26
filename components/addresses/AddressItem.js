@@ -10,6 +10,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import Share from 'react-native-share';
 
 const AddressItem = ({ item, balanceUnit, walletID, allowSignVerifyMessage }) => {
+
+  //console.log("Within AddressItem for address : "+JSON.stringify(item));
   const { colors } = useTheme();
 
   const hasTransactions = item.transactions > 0;
@@ -43,6 +45,7 @@ const AddressItem = ({ item, balanceUnit, walletID, allowSignVerifyMessage }) =>
       params: {
         walletID,
         address: item.address,
+        isInternal: item.isInternal,
       },
     });
   };

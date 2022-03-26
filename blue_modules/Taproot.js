@@ -4,8 +4,37 @@ const schnorr = require('bip-schnorr');
 const Buffer = require('safe-buffer').Buffer;
 
 const FUNDING_ADDRESS = 'funding_address_';
+const VAULT_ADDRESS = 'vault_address_';
 const USED_PUB_KEYS = 'used_pub_keys_';
 const API_SERVER = 'http://52.10.139.220:8080';
+
+module.exports.spendFundingLender = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, borrowerSig, borrowerPreImage, lenderSig) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('borrowerHash', borrowerHash);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('scriptPathIndex', '1');
+    form_data.append('borrowerSig', borrowerSig);
+    form_data.append('lenderSig', lenderSig);
+    form_data.append('borrowerPreImage', borrowerPreImage);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/spendFundingLender',form_data);
+
+    console.log("Taproot.spendFundingLender() : "+JSON.stringify(response.data));
+
+    let signedTx = response.data['LenderFundingSpendTxHex'];
+
+    return signedTx;
+
+};
 
 module.exports.spendFundingBorrower = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, scriptPathIndex, borrowerSig) {
 
@@ -137,6 +166,7 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
        "lenderFundingPubKey": pubKeyLender,
        "borrowerFundingPubKey": pubKeyBorrower,
        "borrowerHash": borrowerHash,
+       "vaultAddress": '',
        "walletID": walletID
     }
 
@@ -199,6 +229,90 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
 
 };
 
+module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, numBlocks, walletID) {
+
+
+    let taprootVaultAddress;
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('lenderHash', lenderHash);
+    form_data.append('numBlocks', numBlocks);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createVaultTxAddress',form_data);
+
+    console.log(response.data);
+    taprootVaultAddress = response.data['VaultTxAddress'];
+ 
+
+    var vaultTx = {
+       "taprootFundingPubKey": taprootPubKey,
+       "lenderFundingPubKey": pubKeyLender,
+       "borrowerFundingPubKey": pubKeyBorrower,
+       "lenderHash": lenderHash,
+       "numBlocks": numBlocks,
+       "fundingAddress": fundingTxAddress,
+       "walletID": walletID
+    }
+
+    var vaultTxJson = JSON.stringify(vaultTx);
+
+
+    // store this vault address
+    AsyncStorage.setItem(VAULT_ADDRESS+taprootVaultAddress, vaultTxJson);
+ 
+    // now save the taproot vault address as part of an array for the given wallet Id so that it can be
+    // retrieved later in order to verify if a specific BTC tx includes a taproot vault address
+
+    var vaultTxAddresses = [];
+
+    var savedVaultTxAddresses = await AsyncStorage.getItem(VAULT_ADDRESS+walletID);
+
+    if (savedVaultTxAddresses !== null) {
+       vaultTxAddresses = JSON.parse(savedVaultTxAddresses);
+    }
+
+    vaultTxAddresses.push(taprootVaultAddress);
+
+    AsyncStorage.setItem(VAULT_ADDRESS+walletID, JSON.stringify(vaultTxAddresses));
+
+    // now we save the borrower and lender pub keys separately so we can easily retrieve later when
+    // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
+
+    var usedPubKeys = [];
+
+    var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
+
+    if (savedUsedPubKeys !== null) {
+       usedPubKeys = JSON.parse(savedUsedPubKeys);
+    }
+
+    usedPubKeys.push(pubKeyLender);
+    if (pubKeyLender !== pubKeyBorrower) {
+       usedPubKeys.push(pubKeyBorrower);
+    }
+
+    AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
+
+    // finally, we'll update the existing Funding tx struct to include this Vault tx address
+
+    let fundingTxInfo = await this.getFundingTxInfo(fundingTxAddress);
+    fundingTxInfo.vaultAddress = taprootVaultAddress;
+    await AsyncStorage.setItem(FUNDING_ADDRESS+fundingTxAddress, JSON.stringify(fundingTxInfo));
+
+    console.log("Updated funding tx info struct : "+ JSON.stringify(fundingTxInfo));
+
+    return taprootVaultAddress;
+
+};
+
+
 module.exports.getFundingTxInfo = async function (address) {
 
     var taprootInfo = await AsyncStorage.getItem(FUNDING_ADDRESS+address);
@@ -239,6 +353,7 @@ module.exports.findUsedPubKeys = async function (walletID) {
        console.log("findUsedPubKeys : "+usedPubKeys.toString());
     }
     else {
+       usedPubKeys = [];
        console.log("findUsedPubKeys : no used pub keys found for wallet Id : "+walletID);
     } 
  

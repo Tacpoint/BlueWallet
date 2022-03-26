@@ -664,7 +664,7 @@ const WalletTransactions = () => {
         {wallet.allowReceive() && (
           <FButton
             testID="ReceiveButton"
-            text={loc.receive.header}
+            text={loc.receive.create_funding_address}
             onPress={navigateToGenerateFundingAddress}
           />
         )}

@@ -103,12 +103,8 @@ const SpendFundingTxAsBorrower = () => {
         setRawInputTxHex(rawTxResult.rawTxHex);
         setConfirmations(rawTxResult.confirmations);
         setVoutIndex(rawTxResult.voutIndex);
-
-        
-
         
     })();
-
      
   }, []);
 

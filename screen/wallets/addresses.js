@@ -27,9 +27,9 @@ export const getAddress = (wallet, index, isInternal) => {
   }
 
   // for our taproot vaults, we want the actual pub key, which is used in our taproot transactions ...
-  console.log("Address : "+address);
+  //console.log("Address : "+address);
   let pubkey = wallet._getPubkeyByAddress(address, index);
-  console.log("Pub key ["+index+"] : "+pubkey.toString('hex'));
+  //console.log("Pub key ["+index+"] : "+pubkey.toString('hex'));
   address = pubkey.toString('hex').substring(2);
 
   return {
@@ -101,17 +101,18 @@ const WalletAddresses = () => {
   const getAddresses = () => {
     const addressList = [];
 
-    for (let index = 0; index <= walletInstance.next_free_change_address_index; index++) {
+    for (let index = 0; index < walletInstance.next_free_address_index + walletInstance.gap_limit; index++) {
+    //for (let index = 0; index <= walletInstance.next_free_change_address_index; index++) {
       const address = getAddress(walletInstance, index, true);
 
-      console.log(address);
+      //console.log(address);
       addressList.push(address);
     }
 
     for (let index = 0; index < walletInstance.next_free_address_index + walletInstance.gap_limit; index++) {
       const address = getAddress(walletInstance, index, false);
 
-      console.log(address);
+      //console.log(address);
       addressList.push(address);
     }
 

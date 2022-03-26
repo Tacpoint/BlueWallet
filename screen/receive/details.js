@@ -18,6 +18,7 @@ import Share from 'react-native-share';
 
 import {
   BlueLoading,
+  BlueFormLabel,
   BlueCopyTextToClipboard,
   BlueButton,
   BlueButtonLink,
@@ -42,7 +43,9 @@ import * as BlueElectrum from '../../blue_modules/BlueElectrum';
 const currency = require('../../blue_modules/currency');
 
 const ReceiveDetails = () => {
-  const { walletID, address, index } = useRoute().params;
+
+  const Taproot = require('../../blue_modules/Taproot');
+  const { walletID, address, index, isInternal } = useRoute().params;
 
   //alert("wallet Id : "+walletID);
   //alert("address : "+address);
@@ -65,6 +68,16 @@ const ReceiveDetails = () => {
   const { colors } = useTheme();
   const [intervalMs, setIntervalMs] = useState(5000);
   const [eta, setEta] = useState('');
+
+  const [currentKeyHash, setCurrentKeyHash] = useState('');
+  const [currentKeyHashPreImage, setCurrentKeyHashPreImage] = useState('');
+
+  const [fundingTaprootPubKey, setFundingTaprootPubKey] = useState('');
+  const [fundingAddress, setFundingAddress] = useState('');
+  const [fundingBorrowerPubKey, setFundingBorrowerPubKey] = useState('');
+  const [fundingBorrowerHash, setFundingBorrowerHash] = useState('');
+  const [fundingLenderPubKey, setFundingLenderPubKey] = useState('');
+
   const [initialConfirmed, setInitialConfirmed] = useState(0);
   const [initialUnconfirmed, setInitialUnconfirmed] = useState(0);
   const [displayBalance, setDisplayBalance] = useState('');
@@ -157,7 +170,7 @@ const ReceiveDetails = () => {
     label: {
       color: colors.foregroundColor,
       fontWeight: '600',
-      textAlign: 'center',
+      textAlign: 'left',
       paddingBottom: 24,
     },
     loading: {
@@ -175,6 +188,78 @@ const ReceiveDetails = () => {
       fontWeight: '700',
     },
   });
+
+ useEffect(() => {
+
+    let fundingTxInfo;
+
+    (async () => {
+
+        // compute pre-image and hash to display for the user ...
+        let addressType = 0;
+      
+        if (isInternal) addressType = 1;
+
+        setCurrentKeyHash(wallet.generateSecretHash(address, addressType));
+        setCurrentKeyHashPreImage(wallet.generateSecretHashPreImage(address, addressType)); 
+
+        
+        // check if this pub key is involved in any funding or vault transactions
+        let usedPubKeys = await Taproot.findUsedPubKeys(wallet.getID()) ;
+
+        if (usedPubKeys.includes(address)) {
+           console.log("This pub key was involved in a funding / vault address : "+address);
+           // get funding addresses and find which address uses this pub key
+      
+           let fundingAddresses = await Taproot.getFundingAddresses(wallet.getID());
+           for (let i = 0; i < fundingAddresses.length; i++) {
+              fundingTxInfo = await Taproot.getFundingTxInfo(fundingAddresses[i]);
+              if (fundingTxInfo.lenderFundingPubKey === address ||
+                 fundingTxInfo.borrowerFundingPubKey === address) {
+
+                 // we found an existing funding address, collect info for display
+                 setFundingTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
+                 setFundingAddress(fundingAddresses[i]);
+                 setFundingBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
+                 setFundingLenderPubKey(fundingTxInfo.lenderFundingPubKey);
+                 setFundingBorrowerHash(fundingTxInfo.borrowerHash);
+
+                 break; 
+              }
+           }
+        }
+              
+           
+
+        /*
+        setBorrowerHash(fundingTxInfo.borrowerHash);
+        setLenderPubKey(fundingTxInfo.lenderFundingPubKey);
+        setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
+        setTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
+
+        fundingTxInfo = await Taproot.getFundingTxInfo(address);
+
+
+        setBorrowerHash(fundingTxInfo.borrowerHash);
+        setLenderPubKey(fundingTxInfo.lenderFundingPubKey);
+        setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
+        setTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
+
+        let rawTxResult = await Taproot.getRawTransaction(txID, address);
+        rawTxResult = JSON.parse(rawTxResult);
+        console.log("Tx Hex : "+rawTxResult.rawTxHex);
+        console.log("Confirmations : "+rawTxResult.confirmations);
+        console.log("Vout Index : "+rawTxResult.voutIndex);
+
+        setRawInputTxHex(rawTxResult.rawTxHex);
+        setConfirmations(rawTxResult.confirmations);
+        setVoutIndex(rawTxResult.voutIndex);
+
+        */
+
+
+    })();
+  }, []);
 
   useEffect(() => {
     if (showConfirmedBalance) {
@@ -198,9 +283,14 @@ const ReceiveDetails = () => {
         const address2use = address || decoded.address;
         if (!address2use) return;
 
-        console.log('checking address', address2use, 'for balance...');
-        const balance = await BlueElectrum.getBalanceByAddress(address2use);
-        console.log('...got', balance);
+        let balance = 0;
+    
+        // doesn't make sense to check balance for a schnorr pub key.
+        // TODO, could lookup to see if we have any funding or vault addresses associatd with this key 
+        // and use that instead!
+        //console.log('checking address', address2use, 'for balance...');
+        //const balance = await BlueElectrum.getBalanceByAddress(address2use);
+        //console.log('...got', balance);
 
         if (balance.unconfirmed > 0) {
           if (initialConfirmed === 0 && initialUnconfirmed === 0) {
@@ -353,16 +443,29 @@ const ReceiveDetails = () => {
             </>
           )}
 
-          <QRCodeComponent value={bip21encoded} />
+          <BlueFormLabel style={stylesHook.label}>{loc.taproot.my_taproot_pub_key}</BlueFormLabel>
           <BlueCopyTextToClipboard text={isCustom ? bip21encoded : address} />
+          <BlueFormLabel>{loc.taproot.current_key_hash}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={currentKeyHash} />
+          <BlueFormLabel>{loc.taproot.current_key_pre_image}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={currentKeyHashPreImage} />
+
+          <BlueFormLabel>{loc.taproot.funding_deposit_address}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingAddress} />
+          <BlueFormLabel>{loc.taproot.taproot_pub_key}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingTaprootPubKey} />
+          <BlueFormLabel>{loc.taproot.borrower_pub_key}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingBorrowerPubKey} />
+          <BlueFormLabel>{loc.taproot.borrower_secret_hash}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingBorrowerHash} />
+          <BlueFormLabel>{loc.taproot.lender_pub_key}</BlueFormLabel>
+          <BlueCopyTextToClipboard text={fundingLenderPubKey} />
+
         </View>
         <View style={stylesHook.share}>
           <BlueCard>
-            <BlueButton onPress={navigateToAddPubKeys} testID="AddPubKeys" title={loc.addresses.add_pubs_title} />
             <BlueSpacing20 />
-            <BlueButton onPress={navigateToSignVerify} testID="SignVerify" title={loc.addresses.sign_title} />
-            <BlueSpacing20 />
-            <BlueButton onPress={handleShareButtonPressed} title={loc.receive.details_share} />
+            <BlueButton onPress={navigateToSignVerify} title={loc.addresses.sign_title} />
           </BlueCard>
         </View>
         {renderCustomAmountModal()}
