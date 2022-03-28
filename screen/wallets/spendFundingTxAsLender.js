@@ -8,6 +8,7 @@ import {
   Platform,
   StatusBar,
   TouchableOpacity,
+  ScrollView,
   Text,
   StyleSheet,
   TextInput,
@@ -212,6 +213,7 @@ const SpendFundingTxAsLender = () => {
     );
 
   return (
+    <ScrollView>
     <SafeBlueArea style={[styles.root, stylesHooks.root]}>
       <StatusBar barStyle="light-content" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -411,6 +413,7 @@ const SpendFundingTxAsLender = () => {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeBlueArea>
+    </ScrollView>
   );
 };
 
