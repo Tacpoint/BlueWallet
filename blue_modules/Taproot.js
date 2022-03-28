@@ -313,6 +313,20 @@ module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootP
 };
 
 
+module.exports.getVaultTxInfo = async function (address) {
+
+    var taprootInfo = await AsyncStorage.getItem(VAULT_ADDRESS+address);
+
+    if (taprootInfo !== null) {
+       taprootInfo = JSON.parse(taprootInfo);
+    }
+
+    console.log("getVaultTxInfo : "+taprootInfo.toString());
+ 
+    return taprootInfo;
+
+};
+
 module.exports.getFundingTxInfo = async function (address) {
 
     var taprootInfo = await AsyncStorage.getItem(FUNDING_ADDRESS+address);
@@ -324,6 +338,22 @@ module.exports.getFundingTxInfo = async function (address) {
     console.log("getFundingTxInfo : "+taprootInfo.toString());
  
     return taprootInfo;
+
+};
+
+module.exports.getVaultAddresses = async function (walletID) {
+
+    var vaultTxAddresses = [];
+
+    var savedVaultTxAddresses = await AsyncStorage.getItem(VAULT_ADDRESS+walletID);
+
+    if (savedVaultTxAddresses !== null) {
+       vaultTxAddresses = JSON.parse(savedVaultTxAddresses);
+    }
+
+    console.log("getVaultAddresses - Vault tx addresses for wallet Id : "+walletID+" "+vaultTxAddresses.toString());
+ 
+    return vaultTxAddresses;
 
 };
 
