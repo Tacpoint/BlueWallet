@@ -87,6 +87,7 @@ const WalletsAdd = () => {
   };
 
   useEffect(() => {
+    handleOnTaprootButtonPressed();
     AsyncStorage.getItem(AppStorage.LNDHUB)
       .then(url => setWalletBaseURI(url || 'https://lndhub.io'))
       .catch(() => setWalletBaseURI(''));
@@ -292,14 +293,7 @@ const WalletsAdd = () => {
             underlineColorAndroid="transparent"
           />
         </View>
-        <BlueFormLabel>{loc.wallets.add_wallet_type}</BlueFormLabel>
         <View style={styles.buttons}>
-          <BitcoinButton
-            testID="ActivateBitcoinButton"
-            active={selectedWalletType === ButtonSelected.ONCHAIN}
-            onPress={handleOnBitcoinButtonPressed}
-            style={styles.button}
-          />
           <TaprootButton active={selectedWalletType === ButtonSelected.TAPROOT} onPress={handleOnTaprootButtonPressed} style={styles.button} />
         </View>
 
@@ -378,14 +372,6 @@ const WalletsAdd = () => {
               <ActivityIndicator />
             )}
           </View>
-          {!isLoading && (
-            <BlueButtonLink
-              testID="ImportWallet"
-              style={styles.import}
-              title={loc.wallets.add_import_wallet}
-              onPress={navigateToImportWallet}
-            />
-          )}
         </View>
       </KeyboardAvoidingView>
     </ScrollView>
