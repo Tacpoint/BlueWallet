@@ -7,6 +7,9 @@ const FUNDING_ADDRESS = 'funding_address_';
 const VAULT_ADDRESS = 'vault_address_';
 const USED_PUB_KEYS = 'used_pub_keys_';
 const API_SERVER = 'http://52.10.139.220:8080';
+const FUNDING_TX_LOCKTIME = 144;
+
+module.exports.FUNDING_TX_LOCKTIME = FUNDING_TX_LOCKTIME;
 
 module.exports.spendFundingLender = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, borrowerSig, borrowerPreImage, lenderSig) {
 
@@ -31,6 +34,35 @@ module.exports.spendFundingLender = async function (taprootPubKey, pubKeyBorrowe
     console.log("Taproot.spendFundingLender() : "+JSON.stringify(response.data));
 
     let signedTx = response.data['LenderFundingSpendTxHex'];
+
+    return signedTx;
+
+};
+
+module.exports.spendVaultBorrower = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, 
+                                                    lenderHashPreImage, spendingTxHex, inputTxHex, numBlocks, scriptPathIndex, borrowerSig) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('lenderHash', lenderHash);
+    form_data.append('lenderPreImage', lenderHashPreImage);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('scriptPathIndex', scriptPathIndex);
+    form_data.append('numBlocks', numBlocks);
+    form_data.append('borrowerSig', borrowerSig);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/spendVaultBorrower',form_data);
+
+    console.log("Taproot.spendVaultBorrower() : "+JSON.stringify(response.data));
+
+    let signedTx = response.data['BorrowerVaultSpendTxHex'];
 
     return signedTx;
 
@@ -62,6 +94,32 @@ module.exports.spendFundingBorrower = async function (taprootPubKey, pubKeyBorro
 
 };
 
+module.exports.createVaultSigHash = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, spendingTxHex, inputTxHex, numBlocks, scriptPathIndex) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderHash', lenderHash);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('numBlocks', numBlocks);
+    form_data.append('scriptPathIndex', scriptPathIndex);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createVaultSighash',form_data);
+
+    console.log("Taproot.createVaultSigHash() : "+JSON.stringify(response.data));
+
+    let sigHash = response.data['Sighash'];
+
+    return sigHash;
+
+};
+
 module.exports.createFundingSigHash = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, scriptPathIndex) {
 
     const axios = require('axios').default;
@@ -79,7 +137,7 @@ module.exports.createFundingSigHash = async function (taprootPubKey, pubKeyBorro
 
     const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createFundingSighash',form_data);
 
-    console.log("Taproot.createSigHash() : "+JSON.stringify(response.data));
+    console.log("Taproot.createFundingSigHash() : "+JSON.stringify(response.data));
 
     let sigHash = response.data['Sighash'];
 
@@ -87,7 +145,7 @@ module.exports.createFundingSigHash = async function (taprootPubKey, pubKeyBorro
 
 };
 
-module.exports.createRawTransaction = async function (txId, vout, toAddress, amt, includeSequence) {
+module.exports.createRawTransaction = async function (txId, vout, toAddress, amt, timeLockBlocks) {
 
     const axios = require('axios').default;
     const FormData = require('form-data');
@@ -98,7 +156,12 @@ module.exports.createRawTransaction = async function (txId, vout, toAddress, amt
     form_data.append('vout', vout);
     form_data.append('address', toAddress);
     form_data.append('amt', amt);
-    form_data.append('includeSequence', includeSequence);
+    console.log("Taproot.createRawTransaction - timeLockBlocks : "+timeLockBlocks);
+    if (timeLockBlocks >= FUNDING_TX_LOCKTIME) {
+  
+       console.log("Taproot.createRawTransaction - setting timeLockBlocks value : "+timeLockBlocks);
+       form_data.append('timeLockBlocks', timeLockBlocks);
+    }
 
     console.log("Taproot.createRawTransaction() amt : "+amt);
     const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/createRawTransaction',form_data);
@@ -252,9 +315,9 @@ module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootP
  
 
     var vaultTx = {
-       "taprootFundingPubKey": taprootPubKey,
-       "lenderFundingPubKey": pubKeyLender,
-       "borrowerFundingPubKey": pubKeyBorrower,
+       "taprootVaultPubKey": taprootPubKey,
+       "lenderVaultPubKey": pubKeyLender,
+       "borrowerVaultPubKey": pubKeyBorrower,
        "lenderHash": lenderHash,
        "numBlocks": numBlocks,
        "fundingAddress": fundingTxAddress,

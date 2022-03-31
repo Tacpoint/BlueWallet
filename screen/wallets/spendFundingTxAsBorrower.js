@@ -163,9 +163,9 @@ const SpendFundingTxAsBorrower = () => {
       
       // TODO, need to compute fee, for now, will hard code to 1k sats!
 
-      console.log("handleSignFundingTxAsBorrower - toAddress : "+toAddress);
+      console.log("handleSignFundingTxAsBorrower - toAddress : "+toAddress+" time lock value : "+Taproot.FUNDING_TX_LOCKTIME);
 
-      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), true);
+      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), Taproot.FUNDING_TX_LOCKTIME);
 
       let sighash = await Taproot.createFundingSigHash(taprootPubKey, borrowerPubKey, lenderPubKey, borrowerHash, rawToTxHex, rawInputTxHex, 0);
 
@@ -368,7 +368,7 @@ const SpendFundingTxAsBorrower = () => {
 
 SpendFundingTxAsBorrower.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.taproot.spend_as_borrower_title,
+  title: loc.taproot.spend_funding_as_borrower_title,
 }));
 
 export default SpendFundingTxAsBorrower;

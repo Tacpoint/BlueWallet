@@ -62,6 +62,7 @@ export type Transaction = {
   hash: string;
   taprootfundingaddress: string;
   taprootvaultaddress: string;
+  vaultbalance: number;
   spent: boolean;
   spendingtxid: string;
   version: number;

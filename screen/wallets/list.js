@@ -392,7 +392,6 @@ const WalletsList = () => {
             { key: WalletsListSections.TRANSACTIONS, data: dataSource },
           ]}
         />
-        {renderScanButton()}
       </View>
     </View>
   );

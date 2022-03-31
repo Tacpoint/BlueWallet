@@ -50,6 +50,7 @@ import ViewTaprootHex from './screen/wallets/viewTaprootHex';
 import GenerateBorrowerSig from './screen/wallets/generateBorrowerSig';
 import SpendFundingTxAsBorrower from './screen/wallets/spendFundingTxAsBorrower';
 import SpendFundingTxAsLender from './screen/wallets/spendFundingTxAsLender';
+import SpendVaultTxAsBorrower from './screen/wallets/spendVaultTxAsBorrower';
 import WalletAddresses from './screen/wallets/addresses';
 import BuyBitcoin from './screen/wallets/buyBitcoin';
 import HodlHodl from './screen/wallets/hodlHodl';
@@ -481,6 +482,17 @@ const GenerateBorrowerSigStackRoot = () => {
   );
 };
 
+const SpendVaultTxAsBorrowerStack = createNativeStackNavigator();
+const SpendVaultTxAsBorrowerStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <SpendVaultTxAsBorrowerStack.Navigator name="SpendVaultTxAsBorrowerRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="SpendVaultTxAsBorrower">
+      <SpendVaultTxAsBorrowerStack.Screen name="SpendVaultTxAsBorrower" component={SpendVaultTxAsBorrower} options={SpendVaultTxAsBorrower.navigationOptions(theme)} />
+    </SpendVaultTxAsBorrowerStack.Navigator>
+  );
+};
+
 const SpendFundingTxAsBorrowerStack = createNativeStackNavigator();
 const SpendFundingTxAsBorrowerStackRoot = () => {
   const theme = useTheme();
@@ -626,6 +638,7 @@ const Navigation = () => {
       <RootStack.Screen name="GenerateVaultAddressRoot" component={GenerateVaultAddressStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="SpendFundingTxAsLenderRoot" component={SpendFundingTxAsLenderStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="SpendFundingTxAsBorrowerRoot" component={SpendFundingTxAsBorrowerStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="SpendVaultTxAsBorrowerRoot" component={SpendVaultTxAsBorrowerStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="GenerateBorrowerSigRoot" component={GenerateBorrowerSigStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="ViewTaprootHexRoot" component={ViewTaprootHexStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="BuyBitcoin" component={BuyBitcoin} options={BuyBitcoin.navigationOptions(theme)} />

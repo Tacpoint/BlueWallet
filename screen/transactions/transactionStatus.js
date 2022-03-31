@@ -36,7 +36,7 @@ const buttonStatus = Object.freeze({
 
 const TransactionsStatus = () => {
   const { setSelectedWallet, wallets, txMetadata, fetchAndSaveWalletTransactions } = useContext(BlueStorageContext);
-  const { hash, walletID } = useRoute().params;
+  const { hash, txValue, walletID } = useRoute().params;
   const { navigate, setOptions, goBack } = useNavigation();
   const { colors } = useTheme();
   const wallet = useRef(wallets.find(w => w.getID() === walletID));
@@ -44,6 +44,7 @@ const TransactionsStatus = () => {
   const [isCPFPPossible, setIsCPFPPossible] = useState();
   const [isRBFBumpFeePossible, setIsRBFBumpFeePossible] = useState();
   const [isRBFCancelPossible, setIsRBFCancelPossible] = useState();
+  const [isSpendableVaultTx, setIsSpendableVaultTx] = useState();
   const [tx, setTX] = useState();
   const [isLoading, setIsLoading] = useState(true);
   const fetchTxInterval = useRef();
@@ -131,6 +132,53 @@ const TransactionsStatus = () => {
       params: {
         walletID: walletID,
         address: fundingTxAddress,
+        txID: tx.txid,
+        txAmount: amount, 
+      },
+    });
+
+  };
+
+  const navigateToSpendVaultTxAsBorrower = async () => {
+
+    // find the vault tx address which will be passed to spend the tx
+
+    let knownVaultAddresses = await Taproot.getVaultAddresses(walletID);
+
+    let vaultTxAddress = "";
+    let amount = 0;
+
+    console.log("Retrieved saved vault tx addresses : "+knownVaultAddresses.toString());
+
+    console.log("Current Transaction details : "+JSON.stringify(tx));
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownVaultAddresses.length; index2++) {
+          console.log("Comparing knownVaultAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownVaultAddresses["+index2+"] address : "+knownVaultAddresses[index2]);
+
+          if (knownVaultAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             vaultTxAddress = knownVaultAddresses[index2];
+             amount = tx.outputs[index1].value * 100000000;
+             console.log("Found funding tx address match : "+knownVaultAddresses[index2]+ " value : "+amount);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('SpendVaultTxAsBorrowerRoot', {
+      screen: 'SpendVaultTxAsBorrower',
+      params: {
+        walletID: walletID,
+        address: vaultTxAddress,
         txID: tx.txid,
         txAmount: amount, 
       },
@@ -278,7 +326,6 @@ const TransactionsStatus = () => {
 
   useEffect(() => {
 
-    let currentTx;
     console.log("Checking tx hashes ...");
 
     for (const tx of wallet.current.getTransactions()) {
@@ -286,8 +333,20 @@ const TransactionsStatus = () => {
       console.log("transactionStatus hash : "+hash+" tx.hash : "+tx.hash);
 
       if (tx.hash === hash) {
-        currentTx = tx;
-        setTX(tx);
+
+        console.log("transactionStatus - this is a vault tx - param.txValue : "+txValue+" tx.value : "+tx.value+" tx.vaultbalance : "+tx.vaultbalance); 
+         
+        if (txValue === tx.vaultbalance && tx.vaultbalance > 0) {
+           var vaultTx = JSON.parse(JSON.stringify(tx));
+           vaultTx.value = tx.vaultbalance;
+           setIsSpendableVaultTx(true);
+	   setTX(vaultTx);
+        }
+        else {
+           console.log("transactionStatus - this is NOT a vault tx output!");
+	   setTX(tx);
+        }
+
         break;
       }
     }
@@ -641,7 +700,7 @@ const TransactionsStatus = () => {
          {(() => {
        
             console.log("Was tx spent? "+tx.spent);
-            if (tx.value > 0 && !tx.spent) {
+            if (tx.value > 0 && !tx.spent && !isSpendableVaultTx) {
                   return (
                      <View style={stylesHook.share}>
                         <BlueCard>
@@ -658,6 +717,23 @@ const TransactionsStatus = () => {
                            <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueButton onPress={navigateToGenerateVaultAddress} title={loc.taproot.generate_vault_address} />
+                        </BlueCard>
+                     </View>
+
+                  );
+            }
+            if (tx.value > 0 && !tx.spent && isSpendableVaultTx) {
+                  return (
+                     <View style={stylesHook.share}>
+                        <BlueCard>
+                           <BlueButton onPress={navigateToSpendVaultTxAsBorrower} title={loc.taproot.spend_funding_tx_borrower} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueButton onPress={navigateToSpendFundingTxAsLender} title={loc.taproot.spend_funding_tx_lender} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
                         </BlueCard>
                      </View>
 

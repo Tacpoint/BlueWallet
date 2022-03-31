@@ -807,7 +807,7 @@ export class LegacyWallet extends AbstractWallet {
     }
   }
 
-  signSigHashSchnorr(sighash: string, pubKey: string): string {
+  signSigHashSchnorr(sighash: string, pubKey: string, useExternalAddressSet = true): string {
 
     // need to find address based on the pub key we have 
     // TODO, use more efficient way of finding  the private key given a pub key!
@@ -817,7 +817,13 @@ export class LegacyWallet extends AbstractWallet {
     let found = 0;
 
     for (let index = 0; index <= 1000; index++) {
-       address = this._getExternalAddressByIndex(index);
+       if (useExternalAddressSet) {
+          address = this._getExternalAddressByIndex(index);
+       }
+       else { 
+          address = this._getInternalAddressByIndex(index);
+       }
+
        pk = this._getPubkeyByAddress(address, index);
        if (pk.toString('hex').substring(2) == pubKey) {
           console.log("Found address : "+address+" for pub key : "+pk.toString('hex').substring(2));

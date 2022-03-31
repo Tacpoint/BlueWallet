@@ -632,10 +632,13 @@ const WalletTransactions = () => {
             // pagination in works. in this block we will add more txs to FlatList
             // so as user scrolls closer to bottom it will render mode transactions
 
+            //console.log("transactions.js dataSource : "+JSON.stringify(dataSource));
+
             if (getTransactionsSliced(Infinity).length < limit) {
               // all list rendered. nop
               return;
             }
+
 
             setDataSource(getTransactionsSliced(limit + pageSize));
             setLimit(prev => prev + pageSize);
@@ -652,6 +655,7 @@ const WalletTransactions = () => {
             </ScrollView>
           }
           {...(isElectrumDisabled ? {} : { refreshing: isLoading, onRefresh: refreshTransactions })}
+
           data={dataSource}
           extraData={[timeElapsed, dataSource, wallets]}
           keyExtractor={_keyExtractor}

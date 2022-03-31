@@ -8,7 +8,6 @@ import {
   Platform,
   StatusBar,
   TouchableOpacity,
-  ScrollView,
   Text,
   StyleSheet,
   TextInput,
@@ -32,7 +31,7 @@ import confirm from '../../helpers/confirm';
 const Taproot = require('../../blue_modules/Taproot');
 
 
-const SpendFundingTxAsLender = () => {
+const SpendFundingTxAsBorrower = () => {
 
   const { navigate, setOptions, goBack } = useNavigation();
   const { colors } = useTheme();
@@ -49,12 +48,11 @@ const SpendFundingTxAsLender = () => {
   const [txAmount, setTxAmount] = useState(params.txAmount ?? '');
   const [signedTx, setSignedTx] = useState('');
 
-  console.log("SpendFundingTxAsLender - tx amount : "+txAmount);
+  console.log("SpendFundingTxAsBorrower - tx amount : "+txAmount);
 
   const [myPubKey, setMyPubKey] = useState('');
 
   const [borrowerPubKey, setBorrowerPubKey] = useState('');
-  const [borrowerSig, setBorrowerSig] = useState('');
   const [borrowerSecretHash, setBorrowerSecretHash] = useState('');
   const [lenderPubKey, setLenderPubKey] = useState('');
   const [taprootPubKey, setTaprootPubKey] = useState('');
@@ -66,7 +64,7 @@ const SpendFundingTxAsLender = () => {
   const [isShareVisible, setIsShareVisible] = useState(false);
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
   const [borrowerHash, setBorrowerHash] = useState(''); 
-  const [borrowerHashPreImage, setBorrowerHashPreImage] = useState('');
+  const [mySecretHashPreImage, setMySecretHashPreImage] = useState('');
 
   const [rawInputTxHex, setRawInputTxHex] = useState(''); 
   const [confirmations, setConfirmations] = useState(''); 
@@ -95,7 +93,6 @@ const SpendFundingTxAsLender = () => {
         setLenderPubKey(fundingTxInfo.lenderFundingPubKey);
         setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
         setTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
-        setToAddress(fundingTxInfo.vaultAddress);
 
         let rawTxResult = await Taproot.getRawTransaction(txID, address);
         rawTxResult = JSON.parse(rawTxResult);
@@ -106,10 +103,6 @@ const SpendFundingTxAsLender = () => {
         setRawInputTxHex(rawTxResult.rawTxHex);
         setConfirmations(rawTxResult.confirmations);
         setVoutIndex(rawTxResult.voutIndex);
-
-        if (!fundingTxInfo.vaultAddress || fundingTxInfo.vaultAddress.length === 0) {
-           Alert.alert(loc.taproot.missing_vault_address,'');
-        }
         
     })();
      
@@ -159,7 +152,7 @@ const SpendFundingTxAsLender = () => {
     setLoading(false);
   };
 
-  const handleSignFundingTxAsLender = async () => {
+  const handleSignFundingTxAsBorrower = async () => {
     setLoading(true);
     await sleep(10); // wait for loading indicator to appear
     try {
@@ -170,26 +163,18 @@ const SpendFundingTxAsLender = () => {
       
       // TODO, need to compute fee, for now, will hard code to 1k sats!
 
-      console.log("handleSignFundingTxAsLender - toAddress : "+toAddress);
+      console.log("handleSignFundingTxAsBorrower - toAddress : "+toAddress+" time lock value : "+Taproot.FUNDING_TX_LOCKTIME);
 
-      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), 0);
+      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), Taproot.FUNDING_TX_LOCKTIME);
 
-      let sighash = await Taproot.createFundingSigHash(taprootPubKey, borrowerPubKey, lenderPubKey, borrowerHash, rawToTxHex, rawInputTxHex, 1);
+      let sighash = await Taproot.createFundingSigHash(taprootPubKey, borrowerPubKey, lenderPubKey, borrowerHash, rawToTxHex, rawInputTxHex, 0);
 
-      let lenderSignature = wallet.signSigHashSchnorr(sighash, lenderPubKey);
+      let borrowerSignature = wallet.signSigHashSchnorr(sighash, borrowerPubKey);
 
-      console.log("Lender signature : "+lenderSignature);
+      console.log("Borrower signature : "+borrowerSignature);
 
-      let lenderSignedTx = await Taproot.spendFundingLender(taprootPubKey, 
-                                                            borrowerPubKey, 
-                                                            lenderPubKey, 
-                                                            borrowerHash, 
-                                                            rawToTxHex, 
-                                                            rawInputTxHex, 
-                                                            borrowerSig,
-                                                            borrowerHashPreImage,
-                                                            lenderSignature);
-      setSignedTx(lenderSignedTx);
+      let borrowerSignedTx = await Taproot.spendFundingBorrower(taprootPubKey, borrowerPubKey, lenderPubKey, borrowerHash, rawToTxHex, rawInputTxHex, 0, borrowerSignature);
+      setSignedTx(borrowerSignedTx);
       setReadyToBroadcastTx(true);
 
     } catch (e) {
@@ -213,7 +198,6 @@ const SpendFundingTxAsLender = () => {
     );
 
   return (
-    <ScrollView>
     <SafeBlueArea style={[styles.root, stylesHooks.root]}>
       <StatusBar barStyle="light-content" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -241,7 +225,6 @@ const SpendFundingTxAsLender = () => {
           />
           <BlueSpacing10 />
 
-
           <BlueFormLabel>{loc.taproot.borrower_secret_hash}</BlueFormLabel>
           <TextInput
             multiline
@@ -258,8 +241,6 @@ const SpendFundingTxAsLender = () => {
             editable={!loading}
           />
           <BlueSpacing10 />
-
-
           <BlueFormLabel>{loc.addresses.add_pubs_placeholder_lender_pub_key}</BlueFormLabel>
           <TextInput
             multiline
@@ -293,7 +274,7 @@ const SpendFundingTxAsLender = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.taproot.vault_deposit_address}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.deposit_address}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
@@ -310,39 +291,8 @@ const SpendFundingTxAsLender = () => {
             editable={!loading}
           />
           <BlueSpacing10 />
-
-          <BlueFormLabel>{loc.taproot.borrower_sig}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.taproot.borrower_sig}
-            placeholderTextColor="#81868e"
-            value={borrowerSig}
-            onChangeText={t => setBorrowerSig(t.replace('\n', ''))}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
+          <BlueFormLabel>{loc.taproot.tx_confirmation_count} {confirmations}</BlueFormLabel>
           <BlueSpacing10 />
-
-          <BlueFormLabel>{loc.taproot.borrower_secret_hash_pre_image}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.taproot.borrower_secret_hash_pre_image}
-            placeholderTextColor="#81868e"
-            value={borrowerHashPreImage}
-            onChangeText={t => setBorrowerHashPreImage(t.replace('\n', ''))}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
           <BlueSpacing10 />
           <BlueSpacing10 />
 
@@ -367,7 +317,7 @@ const SpendFundingTxAsLender = () => {
           {!isKeyboardVisible && (
             <>
               <FContainer inline>
-                <FButton onPress={handleSignFundingTxAsLender} text={loc.taproot.sign_tx} disabled={loading} />
+                <FButton onPress={handleSignFundingTxAsBorrower} text={loc.taproot.sign_tx} disabled={loading} />
               </FContainer>
               <BlueSpacing10 />
             </>
@@ -413,16 +363,15 @@ const SpendFundingTxAsLender = () => {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeBlueArea>
-    </ScrollView>
   );
 };
 
-SpendFundingTxAsLender.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+SpendFundingTxAsBorrower.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.taproot.spend_funding_tx_as_lender_title,
+  title: loc.taproot.spend_as_borrower_title,
 }));
 
-export default SpendFundingTxAsLender;
+export default SpendFundingTxAsBorrower;
 
 const styles = StyleSheet.create({
   

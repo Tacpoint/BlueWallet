@@ -252,6 +252,12 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
        addresses2fetch.push(tfa);
     }
 
+    let knownVaultAddresses = await Taproot.getVaultAddresses(this.getID());
+    for (const tva of knownVaultAddresses) {
+       console.log("Adding taproot vault address to list of addresses to Fetch : "+tva);
+       addresses2fetch.push(tva);
+    }
+
     const histories = await BlueElectrum.multiGetHistoryByAddress(addresses2fetch);
     //console.log("Done calling BlueElectrum.multiGetHistoryByAddress ...");
     const txs = {};
@@ -407,6 +413,111 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
     }
 
+    for (let c = 0; c < knownVaultAddresses.length; c++) {
+
+      runningWalletBalance = 0;
+
+      for (const tx of Object.values(txdatas)) {
+        //console.log("tx received : "+JSON.stringify(tx));
+
+
+        for (const vin of tx.vin) {
+          //console.log("vin.addresses : "+JSON.stringify(vin.addresses));
+          //console.log("Checking if vin.addresses contains current vault tx address : "+knownVaultAddresses[c]);
+          if (vin.addresses && vin.addresses.indexOf(knownVaultAddresses[c]) !== -1) {
+
+            // we have a vault tx, which implies (doesn't guarantee), a funding tx that was spent as input to this vault address
+            // in order to display it as 2 separate transactions in the display, we'll need to artificially create a 2nd tx
+            // even though they have the same tx ID.
+
+            //console.log("vin.addresses contains vault tx address : "+knownVaultAddresses[c]);
+            // this TX is related to our address
+            this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
+            const clonedTx = Object.assign({}, tx);
+            clonedTx.inputs = tx.vin.slice(0);
+            clonedTx.outputs = tx.vout.slice(0);
+            delete clonedTx.vin;
+            delete clonedTx.vout;
+
+            runningWalletBalance -= vin.value * 100000000;
+            spentAddresses[knownVaultAddresses[c]] = tx.txid;
+            clonedTx.spent = true;
+            clonedTx.spendingtxid = tx.txid;
+            console.log("Removing balance from vin value ["+vin.value+" for address : "+knownVaultAddresses[c]);
+
+
+            // trying to replace tx if it exists already (because it has lower confirmations, for example)
+            let replaced = false;
+            for (let cc = 0; cc < this._txs_by_external_index[c].length; cc++) {
+              if (this._txs_by_external_index[c][cc].txid === clonedTx.txid) {
+                replaced = true;
+                this._txs_by_external_index[c][cc] = clonedTx;
+              }
+            }
+            if (!replaced) this._txs_by_external_index[c].push(clonedTx);
+          }
+        }
+
+
+        for (const vout of tx.vout) {
+          //console.log("vout: "+JSON.stringify(vout));
+          //console.log("vout.value : "+JSON.stringify(vout.value));
+          //console.log("Checking if vout.scriptPubKey.addresses contains current vault tx address : "+knownVaultAddresses[c]);
+          if (vout.scriptPubKey.addresses && vout.scriptPubKey.addresses.indexOf(knownVaultAddresses[c]) !== -1) {
+            // this TX is related to our address
+            //console.log("Found vout address match for vault tx address : "+knownVaultAddresses[c]);
+            this._txs_by_external_index[c] = this._txs_by_external_index[c] || [];
+
+            const clonedTx = Object.assign({}, tx);
+            clonedTx.taprootvaultaddress = knownVaultAddresses[c];
+            clonedTx.inputs = tx.vin.slice(0);
+            clonedTx.outputs = tx.vout.slice(0);
+            delete clonedTx.vin;
+            delete clonedTx.vout;
+
+            runningWalletBalance += vout.value * 100000000;
+            clonedTx.vaultbalance = vout.value * 100000000;
+            console.log("Adding balance from vout value ["+vout.value+" for address : "+knownVaultAddresses[c]);
+
+
+            // trying to replace tx if it exists already (because it has lower confirmations, for example)
+            let replaced = false;
+            for (let cc = 0; cc < this._txs_by_external_index[c].length; cc++) {
+              if (this._txs_by_external_index[c][cc].txid === clonedTx.txid) {
+                replaced = true;
+                this._txs_by_external_index[c][cc] = clonedTx;
+              }
+            }
+            if (!replaced) this._txs_by_external_index[c].push(clonedTx);
+          }
+        }
+      }
+  
+      // need to loop through the tx set and mark any funding or vault txns as spent where applicable
+      for (const [spentAddress, spentTxId] of Object.entries(spentAddresses)) {
+         console.log("SPENT ADDRS : "+spentAddress, spentTxId);
+       
+         for (const [txkey, txvalue] of Object.entries(this._txs_by_external_index)) {
+            for (let cc = 0; cc < this._txs_by_external_index[txkey].length; cc++) {
+              console.log("Existing tx taprootvaultaddress : "+this._txs_by_external_index[txkey][cc].taprootvaultaddress);
+              console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
+              if (this._txs_by_external_index[txkey][cc].taprootvaultaddress === spentAddress) {
+                 this._txs_by_external_index[txkey][cc].spent = true;
+                 this._txs_by_external_index[txkey][cc].spendingtxid = spentTxId;
+              }
+            }
+         }
+      } 
+
+      // Taproot set balance for future use!
+      console.log("Final wallet balance : "+runningWalletBalance);
+      this._balances_by_external_index[c] = {
+         c: runningWalletBalance,
+         u: 0,
+      };
+
+    }
+
 
     /*
     for (let c = 0; c < this.next_free_address_index + this.gap_limit; c++) {
@@ -514,7 +625,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
   getTransactions() {
 
 
-    //console.log("wallet.getTransactions() being called for wallet ID : "+this.getID());
+    console.log("wallet.getTransactions() being called for wallet ID : "+this.getID());
+
     let txs = [];
 
     for (const addressTxs of Object.values(this._txs_by_external_index)) {
@@ -559,9 +671,15 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
           //console.log("Adding taproot funding address to list of owned addresses : "+tx.taprootfundingaddress);
           ownedAddressesHashmap[tx.taprootfundingaddress] = true;
        }
+       if (tx.taprootvaultaddress) {
+          //console.log("Adding taproot vault address to list of owned addresses : "+tx.taprootvaultaddress);
+          ownedAddressesHashmap[tx.taprootvaultaddress] = true;
+       }
     }
 
+    const vaultTransactions = [];
     const ret = [];
+
     for (const tx of txs) {
       tx.received = tx.blocktime * 1000;
       if (!tx.blocktime) tx.received = +new Date() - 30 * 1000; // unconfirmed
@@ -579,21 +697,47 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
         }
       }
 
+      var isFundingSpentToVault = false;
+      var vaultValue = 0;
+
+
       for (const vout of tx.outputs) {
         // when output goes to our address - this means we are gaining!
         if (vout.scriptPubKey.addresses && vout.scriptPubKey.addresses[0] && ownedAddressesHashmap[vout.scriptPubKey.addresses[0]]) {
-          tx.value += new BigNumber(vout.value).multipliedBy(100000000).toNumber();
+          // TODO, need to prevent adding in the balance from the vout side when this is a funding tx being spent to a vault tx
+
+          if (!tx.taprootvaultaddress) {
+             tx.value += new BigNumber(vout.value).multipliedBy(100000000).toNumber();
+          }
+          else {
+             isFundingSpentToVault = true;
+             vaultValue = new BigNumber(vout.value).multipliedBy(100000000).toNumber();
+          }
+
         }
       }
       ret.push(tx);
+
+      if (isFundingSpentToVault) {
+         var vaultTx = JSON.parse(JSON.stringify(tx));
+         vaultTx.value =  vaultValue;
+         vaultTx.vaultbalance = vaultValue;
+         vaultTransactions.push(vaultTx);
+      }
     }
 
     // now, deduplication:
     const usedTxIds = {};
     const ret2 = [];
+
     for (const tx of ret) {
       if (!usedTxIds[tx.txid]) ret2.push(tx);
       usedTxIds[tx.txid] = 1;
+    }
+    
+    // need to add in the vault tx so it shows as a separate tx in the UI (allowing borrower or lender to spend from it).
+    for (const tx of vaultTransactions) {
+      ret2.push(tx);
     }
 
     return ret2.sort(function (a, b) {

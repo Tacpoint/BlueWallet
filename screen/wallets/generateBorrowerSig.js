@@ -144,7 +144,7 @@ const GenerateBorrowerSig = () => {
 
       console.log("handleGenerateBorrowerSig - toAddress : "+toAddress);
 
-      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), false);
+      let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), 0);
 
       let sighash = await Taproot.createFundingSigHash(taprootPubKey, borrowerPubKey, lenderPubKey, borrowerHash, rawToTxHex, rawInputTxHex, 1);
 
