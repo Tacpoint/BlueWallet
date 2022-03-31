@@ -139,6 +139,53 @@ const TransactionsStatus = () => {
 
   };
 
+  const navigateToSpendVaultTxAsLender = async () => {
+
+    // find the vault tx address which will be passed to spend the tx
+
+    let knownVaultAddresses = await Taproot.getVaultAddresses(walletID);
+
+    let vaultTxAddress = "";
+    let amount = 0;
+
+    console.log("Retrieved saved vault tx addresses : "+knownVaultAddresses.toString());
+
+    console.log("Current Transaction details : "+JSON.stringify(tx));
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownVaultAddresses.length; index2++) {
+          console.log("Comparing knownVaultAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownVaultAddresses["+index2+"] address : "+knownVaultAddresses[index2]);
+
+          if (knownVaultAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             vaultTxAddress = knownVaultAddresses[index2];
+             amount = tx.outputs[index1].value * 100000000;
+             console.log("Found funding tx address match : "+knownVaultAddresses[index2]+ " value : "+amount);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('SpendVaultTxAsLenderRoot', {
+      screen: 'SpendVaultTxAsLender',
+      params: {
+        walletID: walletID,
+        address: vaultTxAddress,
+        txID: tx.txid,
+        txAmount: amount, 
+      },
+    });
+
+  };
+
   const navigateToSpendVaultTxAsBorrower = async () => {
 
     // find the vault tx address which will be passed to spend the tx
@@ -730,7 +777,7 @@ const TransactionsStatus = () => {
                            <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueSpacing10 />
-                           <BlueButton onPress={navigateToSpendFundingTxAsLender} title={loc.taproot.spend_funding_tx_lender} />
+                           <BlueButton onPress={navigateToSpendVaultTxAsLender} title={loc.taproot.spend_funding_tx_lender} />
                            <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueSpacing10 />

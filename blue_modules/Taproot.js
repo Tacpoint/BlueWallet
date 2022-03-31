@@ -39,6 +39,34 @@ module.exports.spendFundingLender = async function (taprootPubKey, pubKeyBorrowe
 
 };
 
+module.exports.spendVaultLender = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, 
+                                                    spendingTxHex, inputTxHex, numBlocks, scriptPathIndex, lenderSig) {
+
+    const axios = require('axios').default;
+    const FormData = require('form-data');
+
+    const form_data = new FormData();
+
+    form_data.append('tapPubKey', taprootPubKey);
+    form_data.append('borrowerPubKey', pubKeyBorrower);
+    form_data.append('lenderPubKey', pubKeyLender);
+    form_data.append('lenderHash', lenderHash);
+    form_data.append('spendingTxHex', spendingTxHex);
+    form_data.append('inputTxHex', inputTxHex);
+    form_data.append('scriptPathIndex', scriptPathIndex);
+    form_data.append('numBlocks', numBlocks);
+    form_data.append('lenderSig', lenderSig);
+
+    const response = await axios.post(API_SERVER+'/btc_vault_api-0.0.1-SNAPSHOT/btc/spendVaultLender',form_data);
+
+    console.log("Taproot.spendVaultLender() : "+JSON.stringify(response.data));
+
+    let signedTx = response.data['LenderVaultSpendTxHex'];
+
+    return signedTx;
+
+};
+
 module.exports.spendVaultBorrower = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, 
                                                     lenderHashPreImage, spendingTxHex, inputTxHex, numBlocks, scriptPathIndex, borrowerSig) {
 
