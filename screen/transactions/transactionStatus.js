@@ -786,6 +786,7 @@ const TransactionsStatus = () => {
 
                   );
             }
+            /*
             else if (tx.value > 0) {
                   return (
                      <View style={stylesHook.share}>
@@ -799,6 +800,7 @@ const TransactionsStatus = () => {
 
                   );
             }
+            */
          })()}
 
  
