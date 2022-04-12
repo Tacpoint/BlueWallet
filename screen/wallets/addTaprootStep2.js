@@ -9,6 +9,7 @@ import {
   Platform,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   findNodeHandle,
@@ -22,6 +23,7 @@ import {
   BlueButton,
   BlueButtonLink,
   BlueFormMultiInput,
+  BlueFormLabel,
   BlueSpacing10,
   BlueSpacing20,
   BlueSpacing40,
@@ -41,6 +43,7 @@ import { encodeUR } from '../../blue_modules/ur';
 import QRCodeComponent from '../../components/QRCodeComponent';
 import alert from '../../components/Alert';
 
+const Taproot = require('../../blue_modules/Taproot');
 const prompt = require('../../blue_modules/prompt');
 const A = require('../../blue_modules/analytics');
 const fs = require('../../blue_modules/fs');
@@ -50,6 +53,7 @@ const staticCache = {};
 let taprootWallet;
 
 const WalletsAddTaprootStep2 = () => {
+
   const { addWallet, saveToDisk, isElectrumDisabled } = useContext(BlueStorageContext);
   const { colors } = useTheme();
 
@@ -68,6 +72,22 @@ const WalletsAddTaprootStep2 = () => {
   const [importText, setImportText] = useState('');
   const openScannerButton = useRef();
   const data = useRef(new Array(n));
+  const [ethAddress, setEthAddress] = useState('');
+
+  const stylesHooks = StyleSheet.create({
+    root: {
+      backgroundColor: colors.elevated,
+    },
+    text: {
+      borderColor: colors.formBorder,
+      borderBottomColor: colors.formBorder,
+      backgroundColor: colors.inputBackgroundColor,
+      color: colors.foregroundColor,
+    },
+    cardText: {
+      color: colors.foregroundColor,
+    },
+  });
 
   const handleOnHelpPress = () => {
     navigation.navigate('WalletsAddMultisigHelp');
@@ -153,6 +173,12 @@ const WalletsAddTaprootStep2 = () => {
       console.log("_onCreate secret : "+w.getSecret());
       console.log("_onCreate id : "+w.getID());
     await saveToDisk();
+
+    await Taproot.saveEthAddress(w.getID(), ethAddress); 
+
+    let savedEthAddress = await Taproot.getEthAddress(w.getID());
+    console.log("Saved eth address : "+savedEthAddress);
+    
     A(A.ENUM.CREATED_WALLET);
     ReactNativeHapticFeedback.trigger('notificationSuccess', { ignoreAndroidSystemSettings: false });
     navigation.dangerouslyGetParent().goBack();
@@ -439,13 +465,13 @@ const WalletsAddTaprootStep2 = () => {
     return (
       <View>
         <MultipleStepsListItem
-          circledText={"TK"}
+          circledText={"1"}
           leftText={loc.formatString(loc.taproot.vault_key, { number: el.index + 1 })}
           dashes={dashType({ index: el.index, lastIndex: data.current.length - 1, isChecked, isFocus: renderProvideKeyButtons })}
           checked={isChecked}
           rightButton={{
             disabled: vaultKeyData.isLoading,
-            text: loc.multisig.share,
+            text: '',
             onPress: () => {
               viewKey(cosigners[el.index]);
             },
@@ -480,6 +506,23 @@ const WalletsAddTaprootStep2 = () => {
             />
           </>
         )}
+        <BlueSpacing10 />
+
+        <BlueFormLabel>{loc.taproot.eth_address}</BlueFormLabel>
+          <TextInput
+            multiline
+            textAlignVertical="top"
+            blurOnSubmit
+            placeholder={loc.taproot.eth_address}
+            placeholderTextColor="#81868e"
+            value={ethAddress}
+            onChangeText={t => setEthAddress(t.replace('\n', ''))}
+            style={[styles.text, stylesHooks.text]}
+            autoCorrect={false}
+            autoCapitalize="none"
+            spellCheck={false}
+            editable={true}
+        />
       </View>
     );
   };
@@ -763,6 +806,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  text: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    marginTop: 5,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderBottomWidth: 0.5,
+    borderRadius: 4,
+    textAlignVertical: 'top',
   },
 });
 

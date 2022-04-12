@@ -6,6 +6,7 @@ const Buffer = require('safe-buffer').Buffer;
 const FUNDING_ADDRESS = 'funding_address_';
 const VAULT_ADDRESS = 'vault_address_';
 const USED_PUB_KEYS = 'used_pub_keys_';
+const WALLET_ETH_ADDRESS = 'wallet_eth_address_';
 const API_SERVER = 'http://52.10.139.220:8080';
 const FUNDING_TX_LOCKTIME = 144;
 
@@ -480,3 +481,13 @@ module.exports.findUsedPubKeys = async function (walletID) {
  
     return usedPubKeys;
 };
+
+module.exports.saveEthAddress = async function (walletID, ethAddress) {
+    AsyncStorage.setItem(WALLET_ETH_ADDRESS+walletID, ethAddress);
+};
+
+module.exports.getEthAddress = async function (walletID) {
+    var ethAddress = await AsyncStorage.getItem(WALLET_ETH_ADDRESS+walletID);
+    return ethAddress;
+};
+

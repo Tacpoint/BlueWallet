@@ -46,6 +46,7 @@ import { Chain } from '../../models/bitcoinUnits';
 import alert from '../../components/Alert';
 
 const prompt = require('../../blue_modules/prompt');
+const Taproot = require('../../blue_modules/Taproot');
 
 const styles = StyleSheet.create({
   root: {
@@ -121,6 +122,7 @@ const WalletDetails = () => {
   const [backdoorPressed, setBackdoorPressed] = useState(0);
   const wallet = useRef(wallets.find(w => w.getID() === walletID)).current;
   const [walletName, setWalletName] = useState(wallet.getLabel());
+  const [ethAddress, setEthAddress] = useState('');
   const [useWithHardwareWallet, setUseWithHardwareWallet] = useState(wallet.useWithHardwareWalletEnabled());
   const { isAdancedModeEnabled } = useContext(BlueStorageContext);
   const [isAdvancedModeEnabledRender, setIsAdvancedModeEnabledRender] = useState(false);
@@ -139,6 +141,19 @@ const WalletDetails = () => {
   const [lightningWalletInfo, setLightningWalletInfo] = useState({});
 
   useEffect(() => {
+
+      (async () => {
+        // retrieve eth address from storage
+        let ethAddress = await Taproot.getEthAddress(wallet.getID());
+        if (ethAddress) {
+           setEthAddress(ethAddress.toString());
+        }
+      })();
+
+  }, []);
+
+  useEffect(() => {
+    setIsAdvancedModeEnabledRender(true);
     if (isAdvancedModeEnabledRender && wallet.allowMasterFingerprint()) {
       InteractionManager.runAfterInteractions(() => {
         setMasterFingerprint(wallet.getMasterFingerprintHex());
@@ -489,6 +504,21 @@ const WalletDetails = () => {
                   <TextInput
                     value={walletName}
                     onChangeText={setWalletName}
+                    numberOfLines={1}
+                    placeholderTextColor="#81868e"
+                    style={styles.inputText}
+                    editable={!isLoading}
+                    underlineColorAndroid="transparent"
+                  />
+                </View>
+              </KeyboardAvoidingView>
+              <BlueSpacing20 />
+              <Text style={[styles.textLabel2, stylesHook.textLabel2]}>{loc.taproot.eth_address.toLowerCase()}</Text>
+              <KeyboardAvoidingView enabled={!Platform.isPad} behavior={Platform.OS === 'ios' ? 'position' : null}>
+                <View style={[styles.input, stylesHook.input]}>
+                  <TextInput
+                    value={ethAddress}
+                    onChangeText={setEthAddress}
                     onBlur={walletNameTextInputOnBlur}
                     numberOfLines={1}
                     placeholderTextColor="#81868e"
@@ -547,15 +577,6 @@ const WalletDetails = () => {
                 </>
               )}
               <BlueSpacing20 />
-              <>
-                <Text onPress={exportInternals} style={[styles.textLabel2, stylesHook.textLabel2]}>
-                  {loc.transactions.list_title.toLowerCase()}
-                </Text>
-                <View style={styles.hardware}>
-                  <BlueText>{loc.wallets.details_display}</BlueText>
-                  <Switch value={hideTransactionsInWalletsList} onValueChange={setHideTransactionsInWalletsList} />
-                </View>
-              </>
               <>
                 <Text onPress={purgeTransactions} style={[styles.textLabel2, stylesHook.textLabel2]}>
                   {loc.transactions.transactions_count.toLowerCase()}

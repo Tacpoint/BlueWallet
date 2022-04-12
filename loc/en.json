@@ -590,6 +590,7 @@
     "taproot_explain": "Compose Tapscript transactions",
     "provide_signature": "Provide signature",
     "vault_key": "Taproot Key",
+    "eth_address": "Ethereum Address",
     "required_keys_out_of_total": "Required keys out of the total",
     "fee": "Fee: {number}",
     "fee_btc": "{number} BTC",
