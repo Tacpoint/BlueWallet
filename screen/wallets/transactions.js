@@ -66,13 +66,15 @@ const WalletTransactions = () => {
   const navigateToGenerateFundingAddress = async () => {
 
     let pk = await wallet.findFirstUnusedSchnorrPubKey();
+    let secretHash = wallet.generateSecretHash(pk);
     console.log("Found unused pub key : "+pk);
 
     navigate('GenerateFundingAddressRoot', { 
        screen: 'GenerateFundingAddress', 
        params: { 
           walletID: wallet.getID(), 
-          address: pk
+          address: pk,
+          secretHash: secretHash
        } 
     });
   }

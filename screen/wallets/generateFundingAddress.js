@@ -40,6 +40,7 @@ const GenerateFundingAddress = () => {
   const wallet = wallets.find(w => w.getID() === params.walletID);
 
   const [address, setAddress] = useState(params.address ?? '');
+  const [mySecretHash, setMySecretHash] = useState(params.secretHash ?? '');
   const [borrowerPubKey, setBorrowerPubKey] = useState('');
   const [borrowerSecretHash, setBorrowerSecretHash] = useState('');
   const [lenderPubKey, setLenderPubKey] = useState('');
@@ -51,9 +52,7 @@ const GenerateFundingAddress = () => {
 
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
 
-  const mySecretHash = wallet.generateSecretHash(address);
-  const mySecretHashPreImage = wallet.generateSecretHashPreImage(address);
-
+  
   useEffect(() => {
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setIsKeyboardVisible(true));
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setIsKeyboardVisible(false));
@@ -130,6 +129,7 @@ const GenerateFundingAddress = () => {
             placeholderTextColor="#81868e"
             value={borrowerPubKey}
             onChangeText={t => setBorrowerPubKey(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -147,6 +147,7 @@ const GenerateFundingAddress = () => {
             placeholderTextColor="#81868e"
             value={borrowerSecretHash}
             onChangeText={t => setBorrowerSecretHash(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -163,6 +164,7 @@ const GenerateFundingAddress = () => {
             placeholderTextColor="#81868e"
             value={lenderPubKey}
             onChangeText={t => setLenderPubKey(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"

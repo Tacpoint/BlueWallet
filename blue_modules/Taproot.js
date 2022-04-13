@@ -467,6 +467,8 @@ module.exports.getFundingAddresses = async function (walletID) {
 
 module.exports.findUsedPubKeys = async function (walletID) {
 
+    var start = new Date().getTime();
+
     var usedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
 
 
@@ -478,6 +480,10 @@ module.exports.findUsedPubKeys = async function (walletID) {
        usedPubKeys = [];
        console.log("findUsedPubKeys : no used pub keys found for wallet Id : "+walletID);
     } 
+
+    var end = new Date().getTime();
+    var time = end - start;
+    alert('Taproot.findUsedPubKeys execution time: ' + time);
  
     return usedPubKeys;
 };
