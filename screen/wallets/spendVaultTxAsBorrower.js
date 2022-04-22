@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
+  ScrollView,
   TextInput,
   TouchableWithoutFeedback,
   View,
@@ -200,6 +201,7 @@ const SpendVaultTxAsBorrower = () => {
     );
 
   return (
+    <ScrollView>
     <SafeBlueArea style={[styles.root, stylesHooks.root]}>
       <StatusBar barStyle="light-content" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -381,6 +383,7 @@ const SpendVaultTxAsBorrower = () => {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeBlueArea>
+    </ScrollView>
   );
 };
 

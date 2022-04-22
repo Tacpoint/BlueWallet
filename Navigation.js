@@ -43,6 +43,7 @@ import ExportMultisigCoordinationSetup from './screen/wallets/exportMultisigCoor
 import ViewEditMultisigCosigners from './screen/wallets/viewEditMultisigCosigners';
 import WalletXpub from './screen/wallets/xpub';
 import SignVerify from './screen/wallets/signVerify';
+import VerifyBorrowerSig from './screen/wallets/verifyBorrowerSig';
 import AddPubKeys from './screen/wallets/addPubKeys';
 import GenerateFundingAddress from './screen/wallets/generateFundingAddress';
 import GenerateVaultAddress from './screen/wallets/generateVaultAddress';
@@ -428,6 +429,17 @@ const SignVerifyStackRoot = () => {
   );
 };
 
+const VerifyBorrowerSigStack = createNativeStackNavigator();
+const VerifyBorrowerSigStackRoot = () => {
+  const theme = useTheme();
+
+  return (
+    <VerifyBorrowerSigStack.Navigator name="VerifyBorrowerSigRoot" screenOptions={{ headerHideShadow: true }} initialRouteName="VerifyBorrowerSig">
+      <VerifyBorrowerSigStack.Screen name="VerifyBorrowerSig" component={VerifyBorrowerSig} options={VerifyBorrowerSig.navigationOptions(theme)} />
+    </VerifyBorrowerSigStack.Navigator>
+  );
+};
+
 const GenerateFundingAddressStack = createNativeStackNavigator();
 const GenerateFundingAddressStackRoot = () => {
   const theme = useTheme();
@@ -645,6 +657,7 @@ const Navigation = () => {
       <RootStack.Screen name="ViewEditMultisigCosignersRoot" component={ViewEditMultisigCosignersRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="WalletXpubRoot" component={WalletXpubStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="SignVerifyRoot" component={SignVerifyStackRoot} options={NavigationDefaultOptions} />
+      <RootStack.Screen name="VerifyBorrowerSigRoot" component={VerifyBorrowerSigStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="AddPubKeysRoot" component={AddPubKeysStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="GenerateFundingAddressRoot" component={GenerateFundingAddressStackRoot} options={NavigationDefaultOptions} />
       <RootStack.Screen name="GenerateVaultAddressRoot" component={GenerateVaultAddressStackRoot} options={NavigationDefaultOptions} />

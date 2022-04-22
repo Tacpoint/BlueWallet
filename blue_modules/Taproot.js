@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { loans } from '../class/loans';
 
 const schnorr = require('bip-schnorr');
 const Buffer = require('safe-buffer').Buffer;
@@ -232,7 +233,7 @@ module.exports.getRawTransaction = async function (txId, tapAddress) {
 
 };
 
-module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, walletID) {
+module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, walletID, persistFundingInfo = true) {
 
 
     let taprootFundingAddress;
@@ -282,7 +283,13 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
     //}
     // end for cleaning up storage only!
     
-    AsyncStorage.setItem(FUNDING_ADDRESS+taprootFundingAddress, fundingTxJson);
+    if (persistFundingInfo) {
+       console.log("createFundingTxAddress - persisting funding info ...");
+       AsyncStorage.setItem(FUNDING_ADDRESS+taprootFundingAddress, fundingTxJson);
+    }
+    else {
+       console.log("createFundingTxAddress - not persisting funding info ...");
+    }
  
     // now save the taproot funding address as part of an array for the given wallet Id so that it can be
     // retrieved later in order to verify if a specific BTC tx includes a taproot funding address
@@ -297,7 +304,9 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
 
     fundingTxAddresses.push(taprootFundingAddress);
 
-    AsyncStorage.setItem(FUNDING_ADDRESS+walletID, JSON.stringify(fundingTxAddresses));
+    if (persistFundingInfo) {
+       AsyncStorage.setItem(FUNDING_ADDRESS+walletID, JSON.stringify(fundingTxAddresses));
+    }
 
     // now we save the borrower and lender pub keys separately so we can easily retrieve later when
     // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
@@ -315,10 +324,11 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
        usedPubKeys.push(pubKeyBorrower);
     }
 
-    AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
+    if (persistFundingInfo) {
+       AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
+    }
 
     return taprootFundingAddress;
-
 };
 
 module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, numBlocks, walletID) {
@@ -495,5 +505,112 @@ module.exports.saveEthAddress = async function (walletID, ethAddress) {
 module.exports.getEthAddress = async function (walletID) {
     var ethAddress = await AsyncStorage.getItem(WALLET_ETH_ADDRESS+walletID);
     return ethAddress;
+};
+
+module.exports.checkForLoans = async function (walletID) {
+
+   console.log("checkForLoans wallet Id : ", walletID);
+   const ethers = require('ethers');
+   const BlueApp = require('../BlueApp');
+
+   let wallet;
+   let wallets = BlueApp.getWallets();
+   for (var i = 0; i < wallets.length; i++) {
+      console.log("checkForLoans wallets[",i,"] ID : ", wallets[i].getID()); 
+      if (wallets[i].getID() === walletID) { 
+         wallet = wallets[i];
+      }
+   }
+
+   let network = 'https://ganache.tacpoint.net'; 
+   //let network = "http://52.34.8.127:8545"; 
+
+   //var chainId = 999;
+   //const provider = new ethers.providers.JsonRpcProvider(network, { chainId: chainId });
+
+   const provider = new ethers.providers.StaticJsonRpcProvider(network);
+   console.log("Successfully created provider!");
+
+
+   try {
+ 
+      console.log('checkForLoans waiting for network ...');
+      const network = await provider.detectNetwork();
+      console.log("checkForLoans network : ", network);
+       
+      provider.getBlockNumber().then((result) => {
+         console.log("checkForLoans : current block number: " + result);
+      });
+
+      const loanContract = new ethers.Contract(loans.LOAN_ADDRESS, loans.abi, provider);
+      let myEthAddress = this.getEthAddress(walletID);
+
+      // get list of loans from ethereum ...
+      const borrowerLoans = await loanContract.borrowerLoans(myEthAddress);
+      const lenderLoans = await loanContract.lenderLoans(myEthAddress);
+
+      console.log("borrower loans : ", JSON.stringify(borrowerLoans));
+      console.log("lender loans : ", JSON.stringify(lenderLoans));
+
+      // combine the loans together into a single array ...
+      let combinedLoans = borrowerLoans.concat(lenderLoans); 
+
+      // for each loan, extract the loan details and check if we need to build funding & vault addresses
+
+      let knownFundingAddresses = await this.getFundingAddresses(wallet.getID())
+
+      for (var i = 0; i < combinedLoans.length; i++) {
+         const loanDetails = await loanContract.getLoanDetails(combinedLoans[i]);
+
+         console.log("###############################################################################################");
+         console.log("checkForLoans loan Id : ", combinedLoans[i]);
+         console.log("checkForLoans token Id : ", loanDetails.tokenID);
+         console.log("checkForLoans amount : ", loanDetails.amount.toString());
+         console.log("checkForLoans loan term : ", loanDetails.loanTerm.toString());
+         console.log("checkForLoans lender : ", loanDetails.lender);
+         console.log("checkForLoans lender hash : ", loanDetails.lenderHashedSecret);
+         console.log("checkForLoans lender secret : ", loanDetails.lenderSecret);
+         console.log("checkForLoans lender funding pub key : ", loanDetails.lenderBtcPubKeys[0]);
+         console.log("checkForLoans lender vault pub key : ", loanDetails.lenderBtcPubKeys[1]);
+         console.log("checkForLoans borrower : ", loanDetails.borrower); 
+         console.log("checkForLoans borrower hash : ", loanDetails.borrowerHashedSecret);
+         console.log("checkForLoans borrower secret : ", loanDetails.borrowerSecret);
+         console.log("checkForLoans borrower funding pub key : ", loanDetails.borrowerBtcPubKeys[0]);
+         console.log("checkForLoans borrower vault pub key : ", loanDetails.borrowerBtcPubKeys[1]);
+         console.log("checkForLoans rate : ", loanDetails.rate.toString());
+         console.log("checkForLoans status : ", loanDetails.fundsLocation.toString());
+         console.log("checkForLoans loan status expiry date : ", loanDetails.locationExpiryDate.toString()); 
+         console.log("###############################################################################################");
+
+         let taprootKey = wallet.combinePubKeysForTaproot(loanDetails.borrowerBtcPubKeys[0], loanDetails.lenderBtcPubKeys[0]);
+         console.log("checkForLoans combined borrower and lender pub key : ", taprootKey);
+
+         let btcFundingAddress = await this.createFundingTxAddress(taprootKey, 
+                                                                   loanDetails.borrowerBtcPubKeys[0], 
+                                                                   loanDetails.lenderBtcPubKeys[0], 
+                                                                   loanDetails.borrowerHashedSecret.substring(2), 
+                                                                   wallet.getID(), 
+                                                                   false);
+
+         console.log("checkForLoans - funding address : ", btcFundingAddress);
+         if (knownFundingAddresses.includes(btcFundingAddress)) {
+            console.log("checkForLoans - funding address : ", btcFundingAddress, " found in list of existing funding addresses");
+         } 
+         else {
+            console.log("checkForLoans - funding address : ", btcFundingAddress, " will be added to the list of funding addresses");
+            await this.createFundingTxAddress(taprootKey, 
+                                              loanDetails.borrowerBtcPubKeys[0], 
+                                              loanDetails.lenderBtcPubKeys[0], 
+                                              loanDetails.borrowerHashedSecret.substring(2), 
+                                              wallet.getID(), 
+                                              true);
+         }
+
+      }
+   }
+   catch(err) {
+      console.log("checkForLoans error : ", err);
+   }
+
 };
 

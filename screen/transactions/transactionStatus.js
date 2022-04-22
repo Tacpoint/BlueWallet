@@ -92,6 +92,53 @@ const TransactionsStatus = () => {
 
   };
 
+  const navigateToVerifyBorrowerSig = async () => {
+
+    // find the funding tx address which will needed to lookup details of the funding tx
+
+    let knownFundingAddresses = await Taproot.getFundingAddresses(walletID);
+
+    let fundingTxAddress = "";
+    let amount = 0;
+
+    console.log("Retrieved saved funding tx addresses : "+knownFundingAddresses.toString());
+
+    console.log("Current Transaction details : "+JSON.stringify(tx));
+
+    var found = 0;
+
+    for (let index1 = 0; index1 < tx.outputs.length; index1++) {
+      
+       console.log("Comparing tx.outputs["+index1+"]");
+
+       for (let index2 = 0; index2 < knownFundingAddresses.length; index2++) {
+          console.log("Comparing knownFundingAddresses["+index2+"]");
+          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
+
+          if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
+             fundingTxAddress = knownFundingAddresses[index2];
+             amount = tx.outputs[index1].value * 100000000;
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " value : "+amount);
+             found = 1;
+             break;
+          }
+       }
+       if (found == 1) break;
+    }
+
+    navigate('VerifyBorrowerSigRoot', {
+      screen: 'VerifyBorrowerSig',
+      params: {
+        walletID: walletID,
+        address: fundingTxAddress,
+        txID: tx.txid,
+        txAmount: amount, 
+      },
+    });
+
+  };
+
   const navigateToGenerateBorrowerSig = async () => {
 
     // find the funding tx address which will needed to lookup details of the funding tx
@@ -764,6 +811,10 @@ const TransactionsStatus = () => {
                            <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueButton onPress={navigateToGenerateVaultAddress} title={loc.taproot.generate_vault_address} />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueSpacing10 />
+                           <BlueButton onPress={navigateToVerifyBorrowerSig} title={loc.taproot.verify_borrower_sig} />
                         </BlueCard>
                      </View>
 

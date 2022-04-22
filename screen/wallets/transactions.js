@@ -59,6 +59,7 @@ const WalletTransactions = () => {
   const { colors } = useTheme();
   const [lnNodeInfo, setLnNodeInfo] = useState({ canReceive: 0, canSend: 0 });
   const walletActionButtonsRef = useRef();
+  const Taproot = require('../../blue_modules/Taproot');
 
   console.log("In wallet details screen for wallet : "+wallet.label);
   console.log("wallet balance for wallet : "+wallet.label+" == "+wallet.getBalance());

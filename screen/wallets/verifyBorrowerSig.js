@@ -8,7 +8,6 @@ import {
   Platform,
   StatusBar,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableWithoutFeedback,
   View,
@@ -19,41 +18,75 @@ import { Icon } from 'react-native-elements';
 import Share from 'react-native-share';
 
 import AOPP from '../../class/aopp';
-import { BlueCard, BlueText, BlueCopyToClipboardButton, BlueDoneAndDismissKeyboardInputAccessory, BlueFormLabel, BlueSpacing10, BlueSpacing20, SafeBlueArea, BlueCopyTextToClipboard } from '../../BlueComponents';
+import { BlueDoneAndDismissKeyboardInputAccessory, BlueFormLabel, BlueSpacing10, BlueSpacing20, SafeBlueArea } from '../../BlueComponents';
 import navigationStyle from '../../components/navigationStyle';
 import { FContainer, FButton } from '../../components/FloatButtons';
 import { BlueStorageContext } from '../../blue_modules/storage-context';
 import loc from '../../loc';
 import confirm from '../../helpers/confirm';
 
-const Taproot = require('../../blue_modules/Taproot');
 
+const VerifyBorrowerSig = () => {
 
-const GenerateFundingAddress = () => {
+  const Taproot = require('../../blue_modules/Taproot');
   const { colors } = useTheme();
-
   const { wallets, sleep } = useContext(BlueStorageContext);
   const { params } = useRoute();
-
   const navigation = useNavigation();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-
-  const wallet = wallets.find(w => w.getID() === params.walletID);
-
   const [address, setAddress] = useState(params.address ?? '');
-  const [mySecretHash, setMySecretHash] = useState(params.secretHash ?? '');
   const [borrowerPubKey, setBorrowerPubKey] = useState('');
-  const [borrowerSecretHash, setBorrowerSecretHash] = useState('');
-  const [lenderPubKey, setLenderPubKey] = useState('');
-  const [message, setMessage] = useState('');
-  const [fundingAddress, setFundingAddress] = useState('');
+  const [message, setMessage] = useState(params.message ?? '');
+  const [signature, setSignature] = useState('');
   const [loading, setLoading] = useState(false);
   const [messageHasFocus, setMessageHasFocus] = useState(false);
   const [isShareVisible, setIsShareVisible] = useState(false);
 
+  const [txID, setTxID] = useState(params.txID ?? '');
+  const [txAmount, setTxAmount] = useState(params.txAmount ?? '');
+  const [sigHash, setSigHash] = useState('');
+
+  const wallet = wallets.find(w => w.getID() === params.walletID);
   const isToolbarVisibleForAndroid = Platform.OS === 'android' && messageHasFocus && isKeyboardVisible;
 
   
+  useEffect(() => {
+
+    let fundingTxInfo;
+
+    (async () => {
+        // retrieve funding tx info from storage
+        fundingTxInfo = await Taproot.getFundingTxInfo(address);
+
+        if (!fundingTxInfo.vaultAddress || fundingTxInfo.vaultAddress.length === 0) {
+           Alert.alert(loc.taproot.missing_vault_address,'');
+           return;
+        }
+
+        setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
+
+        console.log("Funding tx info for address : "+address+" - "+JSON.stringify(fundingTxInfo));
+
+        let rawTxResult = await Taproot.getRawTransaction(txID, address);
+        rawTxResult = JSON.parse(rawTxResult);
+
+        let rawToTxHex = await Taproot.createRawTransaction(txID, rawTxResult.voutIndex, fundingTxInfo.vaultAddress, (txAmount - 1000), 0);
+
+        let signaturehash = await Taproot.createFundingSigHash(fundingTxInfo.taprootFundingPubKey, 
+                                                         fundingTxInfo.borrowerFundingPubKey, 
+                                                         fundingTxInfo.lenderFundingPubKey, 
+                                                         fundingTxInfo.borrowerHash, 
+                                                         rawToTxHex, 
+                                                         rawTxResult.rawTxHex, 1); 
+        setSigHash(signaturehash);
+        
+    })();
+
+
+  }, []);
+
+
+
   useEffect(() => {
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setIsKeyboardVisible(true));
     Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setIsKeyboardVisible(false));
@@ -75,22 +108,74 @@ const GenerateFundingAddress = () => {
     },
   });
 
+  const handleShare = () => {
+    const baseUri = 'https://bluewallet.github.io/VerifySignature';
+    const uri = `${baseUri}?a=${address}&m=${encodeURIComponent(message)}&s=${encodeURIComponent(signature)}`;
+    Share.open({ message: uri }).catch(error => console.log(error));
+  };
 
-  const handleGenerateFundingTxAddress = async () => {
+  const handleSign = async () => {
+    setLoading(true);
+    await sleep(10); // wait for loading indicator to appear
+    let newSignature;
+    const useSegwit = Boolean(params.aoppURI);
+    try {
+      newSignature = wallet.signRawMessageSchnorr(message, address);
+      setSignature(newSignature);
+      setIsShareVisible(true);
+    } catch (e) {
+      ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
+      Alert.alert(loc.errors.error, e.message);
+    }
+
+    if (!params.aoppURI) return setLoading(false);
+
+    let aopp;
+    try {
+      aopp = new AOPP(params.aoppURI);
+    } catch (e) {
+      ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
+      Alert.alert(loc.errors.error, e.message);
+    }
+
+    if (
+      !(await confirm(
+        loc.addresses.sign_aopp_title,
+        loc.formatString(loc.addresses.sign_aopp_confirm, { hostname: aopp.callbackHostname }),
+      ))
+    )
+      return setLoading(false);
+
+    try {
+      await aopp.send({ address, signature: newSignature });
+      Alert.alert(loc._.success, loc.aopp.send_success);
+      navigation.dangerouslyGetParent().pop();
+    } catch (e) {
+      ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
+      Alert.alert(loc.errors.error, loc.aopp.send_error);
+    }
+
+    setLoading(false);
+  };
+
+  const handleVerify = async () => {
     setLoading(true);
     await sleep(10); // wait for loading indicator to appear
     try {
-      let taprootKey = wallet.combinePubKeysForTaproot(borrowerPubKey, lenderPubKey);
-      let data = await Taproot.createFundingTxAddress(taprootKey, borrowerPubKey, lenderPubKey, borrowerSecretHash, wallet.getID());   
-
-      setFundingAddress(data);
+      const res = wallet.verifyBorrowerSig(sigHash, borrowerPubKey, signature);
+      Alert.alert(
+        res ? loc._.success : loc.errors.error,
+        res ? loc.addresses.sign_signature_correct : loc.addresses.sign_signature_incorrect,
+      );
+      if (res) {
+        ReactNativeHapticFeedback.trigger('notificationSuccess', { ignoreAndroidSystemSettings: false });
+      }
     } catch (e) {
       ReactNativeHapticFeedback.trigger('notificationError', { ignoreAndroidSystemSettings: false });
       Alert.alert(loc.errors.error, e.message);
     }
     setLoading(false);
   };
-
 
   const handleFocus = value => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -105,24 +190,18 @@ const GenerateFundingAddress = () => {
     );
 
   return (
-    <ScrollView>
     <SafeBlueArea style={[styles.root, stylesHooks.root]}>
       <StatusBar barStyle="light-content" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <KeyboardAvoidingView style={[styles.root, stylesHooks.root]}>
           {!isKeyboardVisible && (
             <>
-              <BlueSpacing20 />
             </>
           )}
 
-          <BlueFormLabel>{loc.taproot.my_taproot_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={address} />
-
-          <BlueFormLabel>{loc.taproot.my_secret_hash}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={mySecretHash} />
-
-          <BlueFormLabel>{loc.taproot.borrower_pub_key}</BlueFormLabel>
+          <BlueSpacing10 />
+          <BlueSpacing10 />
+          <BlueFormLabel>{loc.addresses.add_pubs_placeholder_address}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
@@ -131,7 +210,6 @@ const GenerateFundingAddress = () => {
             placeholderTextColor="#81868e"
             value={borrowerPubKey}
             onChangeText={t => setBorrowerPubKey(t.replace('\n', ''))}
-            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -140,33 +218,15 @@ const GenerateFundingAddress = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.taproot.borrower_secret_hash}</BlueFormLabel>
+          <BlueFormLabel>{loc.taproot.tx_hash}</BlueFormLabel>
           <TextInput
             multiline
             textAlignVertical="top"
             blurOnSubmit
-            placeholder={loc.taproot.borrower_secret_hash}
+            placeholder={loc.taproot.tx_hash}
             placeholderTextColor="#81868e"
-            value={borrowerSecretHash}
-            onChangeText={t => setBorrowerSecretHash(t.replace('\n', ''))}
-            showSoftInputOnFocus={false}
-            style={[styles.text, stylesHooks.text]}
-            autoCorrect={false}
-            autoCapitalize="none"
-            spellCheck={false}
-            editable={!loading}
-          />
-          <BlueSpacing10 />
-          <BlueFormLabel>{loc.taproot.lender_pub_key}</BlueFormLabel>
-          <TextInput
-            multiline
-            textAlignVertical="top"
-            blurOnSubmit
-            placeholder={loc.taproot.lender_pub_key}
-            placeholderTextColor="#81868e"
-            value={lenderPubKey}
-            onChangeText={t => setLenderPubKey(t.replace('\n', ''))}
-            showSoftInputOnFocus={false}
+            value={sigHash}
+            onChangeText={t => setSigHash(t.replace('\n', ''))}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -175,8 +235,22 @@ const GenerateFundingAddress = () => {
           />
           <BlueSpacing10 />
 
-          <BlueFormLabel>{loc.taproot.funding_deposit_address}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={fundingAddress} />
+          <BlueFormLabel>{loc.addresses.sign_placeholder_signature}</BlueFormLabel>
+          <TextInput
+            multiline
+            textAlignVertical="top"
+            blurOnSubmit
+            placeholder={loc.addresses.sign_placeholder_signature}
+            placeholderTextColor="#81868e"
+            value={signature}
+            onChangeText={t => setSignature(t.replace('\n', ''))}
+            style={[styles.text, stylesHooks.text]}
+            autoCorrect={false}
+            autoCapitalize="none"
+            spellCheck={false}
+            editable={!loading}
+          />
+          <BlueSpacing10 />
 
           {isShareVisible && !isKeyboardVisible && (
             <>
@@ -197,8 +271,11 @@ const GenerateFundingAddress = () => {
 
           {!isKeyboardVisible && (
             <>
+              <BlueSpacing10 />
+              <BlueSpacing10 />
+              <BlueSpacing10 />
               <FContainer inline>
-                <FButton onPress={handleGenerateFundingTxAddress} text={loc.taproot.create_funding_address_title} disabled={loading} />
+                <FButton onPress={handleVerify} text={loc.addresses.sign_verify} disabled={loading} />
               </FContainer>
               <BlueSpacing10 />
             </>
@@ -230,16 +307,15 @@ const GenerateFundingAddress = () => {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeBlueArea>
-    </ScrollView>
   );
 };
 
-GenerateFundingAddress.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
+VerifyBorrowerSig.navigationOptions = navigationStyle({ closeButton: true, headerHideBackButton: true }, opts => ({
   ...opts,
-  title: loc.taproot.create_funding_address_title,
+  title: loc.taproot.verify_borrower_sig,
 }));
 
-export default GenerateFundingAddress;
+export default VerifyBorrowerSig;
 
 const styles = StyleSheet.create({
   root: {
@@ -269,19 +345,5 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  rowHeader: {
-    flex: 1,
-    flexDirection: 'row',
-    marginBottom: 4,
-    justifyContent: 'space-between',
-  },
-  rowValue: {
-    marginBottom: 26,
-    color: 'grey',
-  },
-  txId: {
-    fontSize: 16,
-    fontWeight: '500',
   },
 });

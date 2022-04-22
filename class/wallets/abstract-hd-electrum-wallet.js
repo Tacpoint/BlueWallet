@@ -206,7 +206,9 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
    */
   async fetchTransactions() {
 
-    //console.log("Inside fetchTransactions() ...");
+    console.log("Inside fetchTransactions() ...");
+    await Taproot.checkForLoans(this.getID());
+
     // if txs are absent for some internal address in hierarchy - this is a sign
     // we should fetch txs for that address
     // OR if some address has unconfirmed balance - should fetch it's txs
@@ -248,7 +250,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
     //console.log("Getting funding addresses for wallet : "+this.getID());
     let knownFundingAddresses = await Taproot.getFundingAddresses(this.getID());
     for (const tfa of knownFundingAddresses) {
-       //console.log("Adding taproot funding address to list of addresses to Fetch : "+tfa);
+       console.log("Adding taproot funding address to list of addresses to Fetch : "+tfa);
        addresses2fetch.push(tfa);
     }
 
@@ -336,11 +338,14 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vout;
 
             runningWalletBalance -= vin.value * 100000000;
+ 
+            console.log("subtracting vin value from running balance  : ", vin.value * 100000000);
+            console.log("runningWalletBalance : ", runningWalletBalance);
             spentAddresses[knownFundingAddresses[c]] = tx.txid;
             clonedTx.spent = true;
             clonedTx.spendingtxid = tx.txid;
             //console.log("Funding tx was spent with the following tx id : "+clonedTx.spendingtxid);
-            console.log("Removing balance from vin value ["+vin.value+" for address : "+knownFundingAddresses[c]);
+            console.log("Processing funding addresses for wallet : "+this.getLabel()+" - removing balance from vin value ["+vin.value+"] for address : "+knownFundingAddresses[c]);
 
 
             // trying to replace tx if it exists already (because it has lower confirmations, for example)
@@ -372,7 +377,9 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vout;
 
             runningWalletBalance += vout.value * 100000000;
-            console.log("Adding balance from vout value ["+vout.value+" for address : "+knownFundingAddresses[c]);
+            console.log("Processing funding addresses for wallet : "+this.getLabel()+" adding balance from vout value ["+vout.value+"] for address : "+knownFundingAddresses[c]);
+            console.log("adding vout value to running balance  : ", vout.value * 100000000);
+            console.log("runningWalletBalance : ", runningWalletBalance);
 
 
             // trying to replace tx if it exists already (because it has lower confirmations, for example)
@@ -394,8 +401,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
        
          for (const [txkey, txvalue] of Object.entries(this._txs_by_external_index)) {
             for (let cc = 0; cc < this._txs_by_external_index[txkey].length; cc++) {
-              console.log("Existing tx taprootfundingaddress : "+this._txs_by_external_index[txkey][cc].taprootfundingaddress);
-              console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
+              //console.log("Existing tx taprootfundingaddress : "+this._txs_by_external_index[txkey][cc].taprootfundingaddress);
+              //console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
               if (this._txs_by_external_index[txkey][cc].taprootfundingaddress === spentAddress) {
                  this._txs_by_external_index[txkey][cc].spent = true;
                  this._txs_by_external_index[txkey][cc].spendingtxid = spentTxId;
@@ -404,8 +411,6 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
          }
       } 
 
-      // Taproot set balance for future use!
-      console.log("Final wallet balance : "+runningWalletBalance);
       this._balances_by_external_index[c] = {
          c: runningWalletBalance,
          u: 0,
@@ -443,7 +448,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             spentAddresses[knownVaultAddresses[c]] = tx.txid;
             clonedTx.spent = true;
             clonedTx.spendingtxid = tx.txid;
-            console.log("Removing balance from vin value ["+vin.value+" for address : "+knownVaultAddresses[c]);
+            console.log("Processing vault addresses for wallet : "+this.getLabel()+" - removing balance from vin value ["+vin.value+"] for address : "+knownVaultAddresses[c]);
 
 
             // trying to replace tx if it exists already (because it has lower confirmations, for example)
@@ -477,8 +482,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
 
             runningWalletBalance += vout.value * 100000000;
             clonedTx.vaultbalance = vout.value * 100000000;
-            console.log("Adding balance from vout value ["+vout.value+" for address : "+knownVaultAddresses[c]);
-
+            console.log("Processing vault addresses for wallet : "+this.getLabel()+" - adding balance from vout value ["+vout.value+"] for address : "+knownVaultAddresses[c]);
 
             // trying to replace tx if it exists already (because it has lower confirmations, for example)
             let replaced = false;
@@ -499,8 +503,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
        
          for (const [txkey, txvalue] of Object.entries(this._txs_by_external_index)) {
             for (let cc = 0; cc < this._txs_by_external_index[txkey].length; cc++) {
-              console.log("Existing tx taprootvaultaddress : "+this._txs_by_external_index[txkey][cc].taprootvaultaddress);
-              console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
+              //console.log("Existing tx taprootvaultaddress : "+this._txs_by_external_index[txkey][cc].taprootvaultaddress);
+              //console.log("Existing tx value : "+this._txs_by_external_index[txkey][cc].value);
               if (this._txs_by_external_index[txkey][cc].taprootvaultaddress === spentAddress) {
                  this._txs_by_external_index[txkey][cc].spent = true;
                  this._txs_by_external_index[txkey][cc].spendingtxid = spentTxId;
@@ -510,13 +514,10 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
       } 
 
       // Taproot set balance for future use!
-      console.log("Final wallet balance : "+runningWalletBalance);
-      this._balances_by_external_index[c] = {
-         c: runningWalletBalance,
-         u: 0,
-      };
-
+      this._balances_by_external_index[c].c = this._balances_by_external_index[c].c + runningWalletBalance;
+      console.log("Wallet balance for wallet : "+this.getLabel()+" after looping through funding and vault addresses : "+this._balances_by_external_index[c].c);
     }
+
 
 
     /*
@@ -625,7 +626,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
   getTransactions() {
 
 
-    console.log("wallet.getTransactions() being called for wallet ID : "+this.getID());
+    //console.log("wallet.getTransactions() being called for wallet ID : "+this.getID());
 
     let txs = [];
 
@@ -870,7 +871,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
           lagAddressesToFetch.push(tfa);
     }
 
-    //console.log("_fetchBalance() - calling electrum for addresses : "+lagAddressesToFetch.toString());
+    console.log("_fetchBalance() - calling electrum for addresses : "+lagAddressesToFetch.toString());
     const txs = await BlueElectrum.multiGetHistoryByAddress(lagAddressesToFetch); // <------ electrum call
 
     for (let c = this.next_free_address_index; c < this.next_free_address_index + this.gap_limit; c++) {

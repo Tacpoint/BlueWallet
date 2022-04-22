@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
+  ScrollView,
   TextInput,
   TouchableWithoutFeedback,
   View,
@@ -198,6 +199,7 @@ const SpendFundingTxAsBorrower = () => {
     );
 
   return (
+    <ScrollView>
     <SafeBlueArea style={[styles.root, stylesHooks.root]}>
       <StatusBar barStyle="light-content" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -217,6 +219,7 @@ const SpendFundingTxAsBorrower = () => {
             placeholderTextColor="#81868e"
             value={borrowerPubKey}
             onChangeText={t => setBorrowerPubKey(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -234,6 +237,7 @@ const SpendFundingTxAsBorrower = () => {
             placeholderTextColor="#81868e"
             value={borrowerHash}
             onChangeText={t => setBorrowerHash(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -250,6 +254,7 @@ const SpendFundingTxAsBorrower = () => {
             placeholderTextColor="#81868e"
             value={lenderPubKey}
             onChangeText={t => setLenderPubKey(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -266,6 +271,7 @@ const SpendFundingTxAsBorrower = () => {
             placeholderTextColor="#81868e"
             value={taprootPubKey}
             onChangeText={t => setTaprootPubKey(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
             autoCapitalize="none"
@@ -283,6 +289,7 @@ const SpendFundingTxAsBorrower = () => {
             placeholderTextColor="#81868e"
             value={toAddress}
             onChangeText={t => setToAddress(t.replace('\n', ''))}
+            showSoftInputOnFocus={false}
             testID="Message"
             style={[styles.text, stylesHooks.text]}
             autoCorrect={false}
@@ -363,6 +370,7 @@ const SpendFundingTxAsBorrower = () => {
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     </SafeBlueArea>
+    </ScrollView>
   );
 };
 

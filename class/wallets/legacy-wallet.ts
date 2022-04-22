@@ -807,6 +807,22 @@ export class LegacyWallet extends AbstractWallet {
     }
   }
 
+  verifyBorrowerSig(hash: string, pubKey: string, signature: string): boolean {
+
+    const publicKeyBuffer = Buffer.from(pubKey, 'hex');
+    const signatureToVerify = Buffer.from(signature, 'hex');
+    const messageBuffer = Buffer.from(hash, 'hex');
+
+    try {
+       schnorr.verify(publicKeyBuffer, messageBuffer, signatureToVerify);
+       console.log('The signature is valid.');
+       return true;
+    } catch (e) {
+       console.error('The signature verification failed: ' + e);
+       return false;
+    }
+  }
+
   signSigHashSchnorr(sighash: string, pubKey: string, useExternalAddressSet = true): string {
 
     // need to find address based on the pub key we have 
