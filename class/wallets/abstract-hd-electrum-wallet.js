@@ -337,9 +337,9 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vin;
             delete clonedTx.vout;
 
-            runningWalletBalance -= vin.value * 100000000;
+            runningWalletBalance -= new BigNumber(vin.value).multipliedBy(100000000).toNumber();
  
-            console.log("subtracting vin value from running balance  : ", vin.value * 100000000);
+            console.log("subtracting vin value from running balance  : ", new BigNumber(vin.value).multipliedBy(100000000).toNumber());
             console.log("runningWalletBalance : ", runningWalletBalance);
             spentAddresses[knownFundingAddresses[c]] = tx.txid;
             clonedTx.spent = true;
@@ -376,9 +376,9 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vin;
             delete clonedTx.vout;
 
-            runningWalletBalance += vout.value * 100000000;
+            runningWalletBalance += new BigNumber(vout.value).multipliedBy(100000000).toNumber();
             console.log("Processing funding addresses for wallet : "+this.getLabel()+" adding balance from vout value ["+vout.value+"] for address : "+knownFundingAddresses[c]);
-            console.log("adding vout value to running balance  : ", vout.value * 100000000);
+            console.log("adding vout value to running balance  : ", new BigNumber(vout.value).multipliedBy(100000000).toNumber());
             console.log("runningWalletBalance : ", runningWalletBalance);
 
 
@@ -444,7 +444,7 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vin;
             delete clonedTx.vout;
 
-            runningWalletBalance -= vin.value * 100000000;
+            runningWalletBalance -= new BigNumber(vin.value).multipliedBy(100000000).toNumber();
             spentAddresses[knownVaultAddresses[c]] = tx.txid;
             clonedTx.spent = true;
             clonedTx.spendingtxid = tx.txid;
@@ -480,8 +480,8 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
             delete clonedTx.vin;
             delete clonedTx.vout;
 
-            runningWalletBalance += vout.value * 100000000;
-            clonedTx.vaultbalance = vout.value * 100000000;
+            runningWalletBalance += new BigNumber(vout.value).multipliedBy(100000000).toNumber();
+            clonedTx.vaultbalance = new BigNumber(vout.value).multipliedBy(100000000).toNumber();
             console.log("Processing vault addresses for wallet : "+this.getLabel()+" - adding balance from vout value ["+vout.value+"] for address : "+knownVaultAddresses[c]);
 
             // trying to replace tx if it exists already (because it has lower confirmations, for example)

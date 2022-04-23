@@ -143,6 +143,7 @@ const GenerateBorrowerSig = () => {
       // TODO, need to compute fee, for now, will hard code to 1k sats!
 
       console.log("handleGenerateBorrowerSig - toAddress : "+toAddress);
+      console.log("handleGenerateBorrowerSig - txAmount : "+txAmount);
 
       let rawToTxHex = await Taproot.createRawTransaction(txID, voutIndex, toAddress, (txAmount - 1000), 0);
 

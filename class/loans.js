@@ -813,6 +813,11 @@ export const loans = {
               "type": "string[2]"
             },
             {
+              "internalType": "string",
+              "name": "borrowerSignature",
+              "type": "string"
+            },
+            {
               "internalType": "uint256",
               "name": "rate",
               "type": "uint256"

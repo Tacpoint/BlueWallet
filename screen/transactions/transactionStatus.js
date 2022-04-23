@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { View, ActivityIndicator, Text, TouchableOpacity, StyleSheet, StatusBar, BackHandler } from 'react-native';
 import { Icon } from 'react-native-elements';
 import { useNavigation, useRoute, useTheme } from '@react-navigation/native';
+import BigNumber from 'bignumber.js';
 
 import {
   BlueButton,
@@ -109,17 +110,19 @@ const TransactionsStatus = () => {
 
     for (let index1 = 0; index1 < tx.outputs.length; index1++) {
       
-       console.log("Comparing tx.outputs["+index1+"]");
+       //console.log("Comparing tx.outputs["+index1+"]");
 
        for (let index2 = 0; index2 < knownFundingAddresses.length; index2++) {
-          console.log("Comparing knownFundingAddresses["+index2+"]");
-          console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
-          console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
+          //console.log("Comparing knownFundingAddresses["+index2+"]");
+          //console.log("tx.outputs["+index1+"] address : "+tx.outputs[index1].scriptPubKey.addresses[0]);
+          //console.log("knownFundingAddresses["+index2+"] address : "+knownFundingAddresses[index2]);
 
           if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              fundingTxAddress = knownFundingAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " value : "+amount);
+
+             // must be careful  when dealing with floating point arithmatic!
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
@@ -165,8 +168,8 @@ const TransactionsStatus = () => {
 
           if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              fundingTxAddress = knownFundingAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " value : "+amount);
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
@@ -212,8 +215,8 @@ const TransactionsStatus = () => {
 
           if (knownVaultAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              vaultTxAddress = knownVaultAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownVaultAddresses[index2]+ " value : "+amount);
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found vault tx address match : "+knownVaultAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
@@ -259,8 +262,8 @@ const TransactionsStatus = () => {
 
           if (knownVaultAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              vaultTxAddress = knownVaultAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownVaultAddresses[index2]+ " value : "+amount);
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found vault tx address match : "+knownVaultAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
@@ -306,8 +309,8 @@ const TransactionsStatus = () => {
 
           if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              fundingTxAddress = knownFundingAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " value : "+amount);
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
@@ -351,8 +354,8 @@ const TransactionsStatus = () => {
 
           if (knownFundingAddresses[index2] === tx.outputs[index1].scriptPubKey.addresses[0]) {
              fundingTxAddress = knownFundingAddresses[index2];
-             amount = tx.outputs[index1].value * 100000000;
-             console.log("Found funding tx address match : "+knownFundingAddresses[index2]);
+             amount = new BigNumber(tx.outputs[index1].value).multipliedBy(100000000).toNumber();
+             console.log("Found funding tx address match : "+knownFundingAddresses[index2]+ " tx.outputs.value : "+tx.outputs[index1].value+" value : "+amount);
              found = 1;
              break;
           }
