@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loans } from '../class/loans';
+import BigNumber from 'bignumber.js';
 
 const schnorr = require('bip-schnorr');
 const Buffer = require('safe-buffer').Buffer;
@@ -10,8 +11,10 @@ const USED_PUB_KEYS = 'used_pub_keys_';
 const WALLET_ETH_ADDRESS = 'wallet_eth_address_';
 const API_SERVER = 'http://52.10.139.220:8080';
 const FUNDING_TX_LOCKTIME = 144;
+const BTC_BLOCKS_PER_DAY = 144;
 
 module.exports.FUNDING_TX_LOCKTIME = FUNDING_TX_LOCKTIME;
+module.exports.BTC_BLOCKS_PER_DAY = BTC_BLOCKS_PER_DAY;
 
 module.exports.spendFundingLender = async function (taprootPubKey, pubKeyBorrower, pubKeyLender, borrowerHash, spendingTxHex, inputTxHex, borrowerSig, borrowerPreImage, lenderSig) {
 
@@ -283,55 +286,57 @@ module.exports.createFundingTxAddress = async function (taprootPubKey, pubKeyBor
     //}
     // end for cleaning up storage only!
     
+    // check if we already know about this funding address and if true, skip it
+    let knownFundingAddresses = await this.getFundingAddresses(walletID)
+    if (knownFundingAddresses.includes(taprootFundingAddress)) {
+       console.log("Funding address ["+taprootFundingAddress+"] exists for wallet ID : "+walletID);
+       return taprootFundingAddress;
+    }
+
     if (persistFundingInfo) {
+
        console.log("createFundingTxAddress - persisting funding info ...");
        AsyncStorage.setItem(FUNDING_ADDRESS+taprootFundingAddress, fundingTxJson);
-    }
-    else {
-       console.log("createFundingTxAddress - not persisting funding info ...");
-    }
  
-    // now save the taproot funding address as part of an array for the given wallet Id so that it can be
-    // retrieved later in order to verify if a specific BTC tx includes a taproot funding address
+       // now save the taproot funding address as part of an array for the given wallet Id so that it can be
+       // retrieved later in order to verify if a specific BTC tx includes a taproot funding address
 
-    var fundingTxAddresses = [];
+       var fundingTxAddresses = [];
 
-    var savedFundingTxAddresses = await AsyncStorage.getItem(FUNDING_ADDRESS+walletID);
+       var savedFundingTxAddresses = await AsyncStorage.getItem(FUNDING_ADDRESS+walletID);
 
-    if (savedFundingTxAddresses !== null) {
-       fundingTxAddresses = JSON.parse(savedFundingTxAddresses);
-    }
+       if (savedFundingTxAddresses !== null) {
+          fundingTxAddresses = JSON.parse(savedFundingTxAddresses);
+       }
 
-    fundingTxAddresses.push(taprootFundingAddress);
+       fundingTxAddresses.push(taprootFundingAddress);
 
-    if (persistFundingInfo) {
        AsyncStorage.setItem(FUNDING_ADDRESS+walletID, JSON.stringify(fundingTxAddresses));
-    }
 
-    // now we save the borrower and lender pub keys separately so we can easily retrieve later when
-    // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
+       // now we save the borrower and lender pub keys separately so we can easily retrieve later when
+       // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
 
-    var usedPubKeys = [];
+       var usedPubKeys = [];
 
-    var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
+       var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
 
-    if (savedUsedPubKeys !== null) {
-       usedPubKeys = JSON.parse(savedUsedPubKeys);
-    }
+       if (savedUsedPubKeys !== null) {
+          usedPubKeys = JSON.parse(savedUsedPubKeys);
+       }
 
-    usedPubKeys.push(pubKeyLender);
-    if (pubKeyLender !== pubKeyBorrower) {
-       usedPubKeys.push(pubKeyBorrower);
-    }
+       usedPubKeys.push(pubKeyLender);
+       if (pubKeyLender !== pubKeyBorrower) {
+          usedPubKeys.push(pubKeyBorrower);
+       }
 
-    if (persistFundingInfo) {
        AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
     }
 
     return taprootFundingAddress;
 };
 
-module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootPubKey, pubKeyBorrower, pubKeyLender, lenderHash, numBlocks, walletID) {
+module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootPubKey, pubKeyBorrower, pubKeyLender, 
+                                                      lenderHash, numBlocks, walletID, persistVaultInfo = true) {
 
 
     let taprootVaultAddress;
@@ -365,50 +370,58 @@ module.exports.createVaultTxAddress = async function (fundingTxAddress, taprootP
 
     var vaultTxJson = JSON.stringify(vaultTx);
 
+    // check if we already know about this vault address and if true, skip it
+    let knownVaultAddresses = await this.getVaultAddresses(walletID)
+    if (knownVaultAddresses.includes(taprootVaultAddress)) {
+       console.log("Vault address ["+taprootVaultAddress+"] exists for wallet ID : "+walletID);
+       return taprootVaultAddress;
+    }
 
-    // store this vault address
-    AsyncStorage.setItem(VAULT_ADDRESS+taprootVaultAddress, vaultTxJson);
+    if (persistVaultInfo) {
+       // store this vault address
+       AsyncStorage.setItem(VAULT_ADDRESS+taprootVaultAddress, vaultTxJson);
  
-    // now save the taproot vault address as part of an array for the given wallet Id so that it can be
-    // retrieved later in order to verify if a specific BTC tx includes a taproot vault address
+       // now save the taproot vault address as part of an array for the given wallet Id so that it can be
+       // retrieved later in order to verify if a specific BTC tx includes a taproot vault address
 
-    var vaultTxAddresses = [];
+       var vaultTxAddresses = [];
 
-    var savedVaultTxAddresses = await AsyncStorage.getItem(VAULT_ADDRESS+walletID);
+       var savedVaultTxAddresses = await AsyncStorage.getItem(VAULT_ADDRESS+walletID);
 
-    if (savedVaultTxAddresses !== null) {
-       vaultTxAddresses = JSON.parse(savedVaultTxAddresses);
+       if (savedVaultTxAddresses !== null) {
+          vaultTxAddresses = JSON.parse(savedVaultTxAddresses);
+       }
+
+       vaultTxAddresses.push(taprootVaultAddress);
+
+       AsyncStorage.setItem(VAULT_ADDRESS+walletID, JSON.stringify(vaultTxAddresses));
+
+       // now we save the borrower and lender pub keys separately so we can easily retrieve later when
+       // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
+
+       var usedPubKeys = [];
+
+       var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
+
+       if (savedUsedPubKeys !== null) {
+          usedPubKeys = JSON.parse(savedUsedPubKeys);
+       }
+
+       usedPubKeys.push(pubKeyLender);
+       if (pubKeyLender !== pubKeyBorrower) {
+          usedPubKeys.push(pubKeyBorrower);
+       }
+
+       AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
+
+       // finally, we'll update the existing Funding tx struct to include this Vault tx address
+
+       let fundingTxInfo = await this.getFundingTxInfo(fundingTxAddress);
+       fundingTxInfo.vaultAddress = taprootVaultAddress;
+       await AsyncStorage.setItem(FUNDING_ADDRESS+fundingTxAddress, JSON.stringify(fundingTxInfo));
+
+       console.log("Updated funding tx info struct : "+ JSON.stringify(fundingTxInfo));
     }
-
-    vaultTxAddresses.push(taprootVaultAddress);
-
-    AsyncStorage.setItem(VAULT_ADDRESS+walletID, JSON.stringify(vaultTxAddresses));
-
-    // now we save the borrower and lender pub keys separately so we can easily retrieve later when
-    // attempting to make use of a new pub key and ensure the key hasn't been used in a previous Taproot tx
-
-    var usedPubKeys = [];
-
-    var savedUsedPubKeys = await AsyncStorage.getItem(USED_PUB_KEYS+walletID);
-
-    if (savedUsedPubKeys !== null) {
-       usedPubKeys = JSON.parse(savedUsedPubKeys);
-    }
-
-    usedPubKeys.push(pubKeyLender);
-    if (pubKeyLender !== pubKeyBorrower) {
-       usedPubKeys.push(pubKeyBorrower);
-    }
-
-    AsyncStorage.setItem(USED_PUB_KEYS+walletID, JSON.stringify(usedPubKeys));
-
-    // finally, we'll update the existing Funding tx struct to include this Vault tx address
-
-    let fundingTxInfo = await this.getFundingTxInfo(fundingTxAddress);
-    fundingTxInfo.vaultAddress = taprootVaultAddress;
-    await AsyncStorage.setItem(FUNDING_ADDRESS+fundingTxAddress, JSON.stringify(fundingTxInfo));
-
-    console.log("Updated funding tx info struct : "+ JSON.stringify(fundingTxInfo));
 
     return taprootVaultAddress;
 
@@ -493,7 +506,7 @@ module.exports.findUsedPubKeys = async function (walletID) {
 
     var end = new Date().getTime();
     var time = end - start;
-    alert('Taproot.findUsedPubKeys execution time: ' + time);
+    console.log('Taproot.findUsedPubKeys execution time: ' + time);
  
     return usedPubKeys;
 };
@@ -531,12 +544,10 @@ module.exports.checkForLoans = async function (walletID) {
    const provider = new ethers.providers.StaticJsonRpcProvider(network);
    console.log("Successfully created provider!");
 
-
-   try {
  
       console.log('checkForLoans waiting for network ...');
-      const network = await provider.detectNetwork();
-      console.log("checkForLoans network : ", network);
+      const networkInfo = await provider.detectNetwork();
+      console.log("checkForLoans network : ", networkInfo);
        
       provider.getBlockNumber().then((result) => {
          console.log("checkForLoans : current block number: " + result);
@@ -558,6 +569,8 @@ module.exports.checkForLoans = async function (walletID) {
       // for each loan, extract the loan details and check if we need to build funding & vault addresses
 
       let knownFundingAddresses = await this.getFundingAddresses(wallet.getID())
+      let knownVaultAddresses = await this.getVaultAddresses(wallet.getID())
+    
 
       for (var i = 0; i < combinedLoans.length; i++) {
          const loanDetails = await loanContract.getLoanDetails(combinedLoans[i]);
@@ -583,7 +596,6 @@ module.exports.checkForLoans = async function (walletID) {
          console.log("###############################################################################################");
 
          let taprootKey = wallet.combinePubKeysForTaproot(loanDetails.borrowerBtcPubKeys[0], loanDetails.lenderBtcPubKeys[0]);
-         console.log("checkForLoans combined borrower and lender pub key : ", taprootKey);
 
          let btcFundingAddress = await this.createFundingTxAddress(taprootKey, 
                                                                    loanDetails.borrowerBtcPubKeys[0], 
@@ -592,9 +604,8 @@ module.exports.checkForLoans = async function (walletID) {
                                                                    wallet.getID(), 
                                                                    false);
 
-         console.log("checkForLoans - funding address : ", btcFundingAddress);
          if (knownFundingAddresses.includes(btcFundingAddress)) {
-            console.log("checkForLoans - funding address : ", btcFundingAddress, " found in list of existing funding addresses");
+            console.log("checkForLoans - funding address : ", btcFundingAddress, " exists");
          } 
          else {
             console.log("checkForLoans - funding address : ", btcFundingAddress, " will be added to the list of funding addresses");
@@ -606,11 +617,39 @@ module.exports.checkForLoans = async function (walletID) {
                                               true);
          }
 
+         // check for vault tx existence ...
+         taprootKey = wallet.combinePubKeysForTaproot(loanDetails.borrowerBtcPubKeys[1], loanDetails.lenderBtcPubKeys[1]);
+
+         // convert loan term to days (stored in seconds) 
+         let termOfLoan = loanDetails.loanTerm.div(86400);
+
+         let numBlocks = new BigNumber(termOfLoan.toNumber()).multipliedBy(BTC_BLOCKS_PER_DAY).toNumber();
+
+         let btcVaultAddress = await this.createVaultTxAddress(btcFundingAddress, 
+                                                               taprootKey, 
+                                                               loanDetails.borrowerBtcPubKeys[1], 
+                                                               loanDetails.lenderBtcPubKeys[1], 
+                                                               loanDetails.lenderHashedSecret.substring(2), 
+                                                               numBlocks, 
+                                                               wallet.getID(), 
+                                                               false);
+         if (knownVaultAddresses.includes(btcVaultAddress)) {
+            console.log("checkForLoans - vault address : ", btcVaultAddress, " exists");
+         }
+         else {
+            console.log("checkForLoans - vault address : ", btcVaultAddress, " will be added to the list of vault addresses");
+            await this.createVaultTxAddress(btcFundingAddress, 
+                                            taprootKey, 
+                                            loanDetails.borrowerBtcPubKeys[1], 
+                                            loanDetails.lenderBtcPubKeys[1], 
+                                            loanDetails.lenderHashedSecret.substring(2), 
+                                            numBlocks, 
+                                            wallet.getID(), 
+                                            true);
+         }
+
       }
-   }
-   catch(err) {
-      console.log("checkForLoans error : ", err);
-   }
+
 
 };
 

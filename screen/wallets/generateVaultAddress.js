@@ -16,6 +16,7 @@ import { useRoute, useTheme, useNavigation } from '@react-navigation/native';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { Icon } from 'react-native-elements';
 import Share from 'react-native-share';
+import BigNumber from 'bignumber.js';
 
 import AOPP from '../../class/aopp';
 import { BlueCard, BlueText, BlueCopyToClipboardButton, BlueDoneAndDismissKeyboardInputAccessory, BlueFormLabel, BlueSpacing10, BlueSpacing20, SafeBlueArea, BlueCopyTextToClipboard } from '../../BlueComponents';
@@ -111,7 +112,7 @@ const GenerateVaultAddress = () => {
          return;
       }
 
-      let numBlocks = nb * 144;
+      let numBlocks = new BigNumber(nb).multipliedBy(Taproot.BTC_BLOCKS_PER_DAY).toNumber();
       let taprootKey = wallet.combinePubKeysForTaproot(borrowerPubKey, lenderPubKey);
       let data = await Taproot.createVaultTxAddress(address, taprootKey, borrowerPubKey, lenderPubKey, lenderSecretHash, numBlocks, wallet.getID());   
 

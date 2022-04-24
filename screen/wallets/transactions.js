@@ -205,8 +205,6 @@ const WalletTransactions = () => {
    */
   const refreshTransactions = async () => {
 
-    alert("calling refreshTransactions ...");
-
     if (isElectrumDisabled) return setIsLoading(false);
     if (isLoading) return;
     setIsLoading(true);

@@ -545,8 +545,15 @@
     "broadcast_tx": "Broadcast",
     "view_taproot_raw_tx_hex": "View Tx",
     "loan_term": "Length of loan (days)",
+
+    "my_funding_pub_key": "My Funding pub key",
+    "my_funding_hashed_secret": "My Funding hashed secret",
+    "my_funding_secret": "My Funding secret pre-image",
+
     "my_vault_pub_key": "My Vault pub key",
     "my_vault_hashed_secret": "My Vault hashed secret",
+    "my_vault_secret": "My Vault secret pre-image",
+
     "borrower_secret_hash": "Borrower Secret Hash",
     "tx_hash": "Spending Transaction Hash",
     "borrower_secret_hash_pre_image": "Borrower Secret Hash Pre Image",
@@ -554,7 +561,7 @@
     "taproot_pub_key": "Combined Taproot pub key",
     "lender_pub_key": "Lender pub key",
     "lender_secret_hash": "Lender Secret Hash",
-    "lender_secret_hash_pre_image": "Lender Secret Hash re Imagee",
+    "lender_secret_hash_pre_image": "Lender Secret Hash Pre Imagee",
     "my_secret_hash": "My hashed secret",
     "vault_deposit_address": "Vault tx deposit address",
     "deposit_address": "Deposit address",

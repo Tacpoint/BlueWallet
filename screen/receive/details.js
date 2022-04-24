@@ -69,14 +69,17 @@ const ReceiveDetails = () => {
   const [intervalMs, setIntervalMs] = useState(5000);
   const [eta, setEta] = useState('');
 
-  const [currentKeyHash, setCurrentKeyHash] = useState('');
-  const [currentKeyHashPreImage, setCurrentKeyHashPreImage] = useState('');
+  const [fundingHash, setFundingHash] = useState('');
+  const [fundingHashPreImage, setFundingHashPreImage] = useState('');
 
-  const [fundingTaprootPubKey, setFundingTaprootPubKey] = useState('');
+  const [vaultHash, setVaultHash] = useState('');
+  const [vaultHashPreImage, setVaultHashPreImage] = useState('');
+
+  const [fundingPubKey, setFundingPubKey] = useState('');
+  const [vaultPubKey, setVaultPubKey] = useState('');
+
   const [fundingAddress, setFundingAddress] = useState('');
-  const [fundingBorrowerPubKey, setFundingBorrowerPubKey] = useState('');
-  const [fundingBorrowerHash, setFundingBorrowerHash] = useState('');
-  const [fundingLenderPubKey, setFundingLenderPubKey] = useState('');
+  const [vaultAddress, setVaultAddress] = useState('');
 
   const [initialConfirmed, setInitialConfirmed] = useState(0);
   const [initialUnconfirmed, setInitialUnconfirmed] = useState(0);
@@ -92,17 +95,6 @@ const ReceiveDetails = () => {
         //address: wallet.getAllExternalAddresses()[0], // works for both single address and HD wallets
       },
     });
-
-  const navigateToAddPubKeys = () =>
-    navigate('AddPubKeysRoot', {
-      screen: 'AddPubKeys',
-      params: {
-        walletID: wallet.getID(),
-        address: address,
-        //address: wallet.getAllExternalAddresses()[0], // works for both single address and HD wallets
-      },
-    });
-
 
   const stylesHook = StyleSheet.create({
     modalContent: {
@@ -170,8 +162,8 @@ const ReceiveDetails = () => {
     label: {
       color: colors.foregroundColor,
       fontWeight: '600',
-      textAlign: 'left',
       paddingBottom: 24,
+      
     },
     loading: {
       alignItems: 'center',
@@ -192,72 +184,57 @@ const ReceiveDetails = () => {
  useEffect(() => {
 
     let fundingTxInfo;
+    let vaultTxInfo;
 
     (async () => {
 
         // compute pre-image and hash to display for the user ...
-        let addressType = 0;
+        let siblingPubKey;
       
-        if (isInternal) addressType = 1;
+        if (isInternal) {
 
-        setCurrentKeyHash(wallet.generateSecretHash(address, addressType));
-        setCurrentKeyHashPreImage(wallet.generateSecretHashPreImage(address, addressType)); 
+           siblingPubKey = wallet.findSiblingPubKey(address, true);
+           setFundingPubKey(siblingPubKey);
+           setFundingHash(wallet.generateSecretHash(siblingPubKey, 0));
+           setFundingHashPreImage(wallet.generateSecretHashPreImage(siblingPubKey, 0)); 
+           
+           setVaultPubKey(address);
+           setVaultHash(wallet.generateSecretHash(address, 1));
+           setVaultHashPreImage(wallet.generateSecretHashPreImage(address, 1)); 
+        } else {
+           siblingPubKey = wallet.findSiblingPubKey(address, false);
+           setVaultPubKey(siblingPubKey);
+           setVaultHash(wallet.generateSecretHash(siblingPubKey, 1));
+           setVaultHashPreImage(wallet.generateSecretHashPreImage(siblingPubKey, 1)); 
+           
+           setFundingPubKey(address);
+           setFundingHash(wallet.generateSecretHash(address, 0));
+           setFundingHashPreImage(wallet.generateSecretHashPreImage(address, 0)); 
+        }
 
         
         // check if this pub key is involved in any funding or vault transactions
         let usedPubKeys = await Taproot.findUsedPubKeys(wallet.getID()) ;
 
+        let fundingAddressExists = false;
         if (usedPubKeys.includes(address)) {
            console.log("This pub key was involved in a funding / vault address : "+address);
+
            // get funding addresses and find which address uses this pub key
-      
            let fundingAddresses = await Taproot.getFundingAddresses(wallet.getID());
            for (let i = 0; i < fundingAddresses.length; i++) {
               fundingTxInfo = await Taproot.getFundingTxInfo(fundingAddresses[i]);
               if (fundingTxInfo.lenderFundingPubKey === address ||
                  fundingTxInfo.borrowerFundingPubKey === address) {
+                 fundingAddressExists = true;
 
                  // we found an existing funding address, collect info for display
-                 setFundingTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
                  setFundingAddress(fundingAddresses[i]);
-                 setFundingBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
-                 setFundingLenderPubKey(fundingTxInfo.lenderFundingPubKey);
-                 setFundingBorrowerHash(fundingTxInfo.borrowerHash);
-
                  break; 
               }
            }
         }
               
-           
-
-        /*
-        setBorrowerHash(fundingTxInfo.borrowerHash);
-        setLenderPubKey(fundingTxInfo.lenderFundingPubKey);
-        setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
-        setTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
-
-        fundingTxInfo = await Taproot.getFundingTxInfo(address);
-
-
-        setBorrowerHash(fundingTxInfo.borrowerHash);
-        setLenderPubKey(fundingTxInfo.lenderFundingPubKey);
-        setBorrowerPubKey(fundingTxInfo.borrowerFundingPubKey);
-        setTaprootPubKey(fundingTxInfo.taprootFundingPubKey);
-
-        let rawTxResult = await Taproot.getRawTransaction(txID, address);
-        rawTxResult = JSON.parse(rawTxResult);
-        console.log("Tx Hex : "+rawTxResult.rawTxHex);
-        console.log("Confirmations : "+rawTxResult.confirmations);
-        console.log("Vout Index : "+rawTxResult.voutIndex);
-
-        setRawInputTxHex(rawTxResult.rawTxHex);
-        setConfirmations(rawTxResult.confirmations);
-        setVoutIndex(rawTxResult.voutIndex);
-
-        */
-
-
     })();
   }, []);
 
@@ -443,30 +420,27 @@ const ReceiveDetails = () => {
             </>
           )}
 
-          <BlueFormLabel style={stylesHook.label}>{loc.taproot.my_taproot_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={isCustom ? bip21encoded : address} />
-          <BlueFormLabel>{loc.taproot.current_key_hash}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={currentKeyHash} />
-          <BlueFormLabel>{loc.taproot.current_key_pre_image}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={currentKeyHashPreImage} />
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_funding_pub_key}</BlueText>
+          <BlueCopyTextToClipboard text={isCustom ? bip21encoded : fundingPubKey} />
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_funding_hashed_secret}</BlueText>
+          <BlueCopyTextToClipboard text={fundingHash} />
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_funding_secret}</BlueText>
+          <BlueCopyTextToClipboard text={fundingHashPreImage} />
 
-          <BlueFormLabel>{loc.taproot.funding_deposit_address}</BlueFormLabel>
+          <BlueText style={styles.rowCaption}>{loc.taproot.funding_deposit_address}</BlueText>
           <BlueCopyTextToClipboard text={fundingAddress} />
-          <BlueFormLabel>{loc.taproot.taproot_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={fundingTaprootPubKey} />
-          <BlueFormLabel>{loc.taproot.borrower_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={fundingBorrowerPubKey} />
-          <BlueFormLabel>{loc.taproot.borrower_secret_hash}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={fundingBorrowerHash} />
-          <BlueFormLabel>{loc.taproot.lender_pub_key}</BlueFormLabel>
-          <BlueCopyTextToClipboard text={fundingLenderPubKey} />
 
-        </View>
-        <View style={stylesHook.share}>
-          <BlueCard>
-            <BlueSpacing20 />
-            <BlueButton onPress={navigateToSignVerify} title={loc.addresses.sign_title} />
-          </BlueCard>
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_vault_pub_key}</BlueText>
+          <BlueCopyTextToClipboard text={isCustom ? bip21encoded : vaultPubKey} />
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_vault_hashed_secret}</BlueText>
+          <BlueCopyTextToClipboard text={vaultHash} />
+          <BlueText style={styles.rowCaption}>{loc.taproot.my_vault_secret}</BlueText>
+          <BlueCopyTextToClipboard text={vaultHashPreImage} />
+
+          <BlueText style={styles.rowCaption}>{loc.taproot.vault_deposit_address}</BlueText>
+          <BlueCopyTextToClipboard text={vaultAddress} />
+          <BlueSpacing20 />
+
         </View>
         {renderCustomAmountModal()}
       </ScrollView>
@@ -661,6 +635,17 @@ const ReceiveDetails = () => {
 };
 
 const styles = StyleSheet.create({
+  rowHeader: {
+    flex: 1,
+    flexDirection: 'row',
+    marginBottom: 4,
+    justifyContent: 'space-between',
+  },
+  rowCaption: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
   icon: {
     width: 400,
     height: 400,

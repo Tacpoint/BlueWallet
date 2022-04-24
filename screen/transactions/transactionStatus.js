@@ -790,9 +790,6 @@ const TransactionsStatus = () => {
             </View>
           ) : null}
 
-         <BlueSpacing10 />
-         <BlueSpacing10 />
-
 
          {(() => {
        
@@ -804,20 +801,16 @@ const TransactionsStatus = () => {
                            <BlueButton onPress={navigateToSpendFundingTxAsBorrower} title={loc.taproot.spend_funding_tx_borrower} />
                            <BlueSpacing10 />
                            <BlueSpacing10 />
-                           <BlueSpacing10 />
                            <BlueButton onPress={navigateToSpendFundingTxAsLender} title={loc.taproot.spend_funding_tx_lender} />
-                           <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueButton onPress={navigateToGenerateBorrowerSig} title={loc.taproot.generate_borrower_sig_for_lender_funding_spend} />
                            <BlueSpacing10 />
                            <BlueSpacing10 />
+                           <BlueButton onPress={navigateToVerifyBorrowerSig} title={loc.taproot.verify_borrower_sig} />
+                           <BlueSpacing10 />
                            <BlueSpacing10 />
                            <BlueButton onPress={navigateToGenerateVaultAddress} title={loc.taproot.generate_vault_address} />
-                           <BlueSpacing10 />
-                           <BlueSpacing10 />
-                           <BlueSpacing10 />
-                           <BlueButton onPress={navigateToVerifyBorrowerSig} title={loc.taproot.verify_borrower_sig} />
                         </BlueCard>
                      </View>
 
@@ -903,8 +896,8 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     alignSelf: 'center',
     justifyContent: 'center',
-    marginTop: 43,
-    marginBottom: 53,
+    marginTop: 23,
+    marginBottom: 33,
   },
   iconWrap: {
     minWidth: 30,

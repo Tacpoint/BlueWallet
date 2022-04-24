@@ -514,7 +514,16 @@ export class AbstractHDElectrumWallet extends AbstractHDWallet {
       } 
 
       // Taproot set balance for future use!
-      this._balances_by_external_index[c].c = this._balances_by_external_index[c].c + runningWalletBalance;
+      if (this._balances_by_external_index[c]) {
+         this._balances_by_external_index[c].c = this._balances_by_external_index[c].c + runningWalletBalance;
+      }
+      else {
+         this._balances_by_external_index[c] = {
+            c: runningWalletBalance,
+            u: 0,
+         };
+      }
+
       console.log("Wallet balance for wallet : "+this.getLabel()+" after looping through funding and vault addresses : "+this._balances_by_external_index[c].c);
     }
 

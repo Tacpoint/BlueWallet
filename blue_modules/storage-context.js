@@ -121,11 +121,22 @@ export const BlueStorageProvider = ({ children }) => {
       }
       await BlueElectrum.waitTillConnected();
       const balanceStart = +new Date();
-      await fetchWalletBalances(lastSnappedTo);
+      try {
+         await fetchWalletBalances(lastSnappedTo);
+      }
+      catch (err) {
+        alert("fetchWalletBalances : "+err);
+      }
+
       const balanceEnd = +new Date();
       console.log('fetch balance took', (balanceEnd - balanceStart) / 1000, 'sec');
       const start = +new Date();
-      await fetchWalletTransactions(lastSnappedTo);
+      try {
+         await fetchWalletTransactions(lastSnappedTo);
+      }
+      catch (err) {
+        alert("fetchWalletTransactions : "+err);
+      }
       const end = +new Date();
       console.log('fetch tx took', (end - start) / 1000, 'sec');
     } catch (err) {

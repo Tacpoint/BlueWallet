@@ -965,6 +965,42 @@ export class LegacyWallet extends AbstractWallet {
 
   }
 
+  findSiblingPubKey(pubKey: string, isInternal = false): string {
+
+    // finds either the main or change pub key for the given pub key string.  
+    // isInternal tells us if this is a change derivation path or not
+    // TODO, use more efficient way of finding  the private key given a pub key!
+
+    let address;
+    let pk;
+
+    for (let index = 0; index <= 1000; index++) {
+
+       if (isInternal)
+          address = this._getInternalAddressByIndex(index);
+       else
+          address = this._getExternalAddressByIndex(index);
+
+       pk = this._getPubkeyByAddress(address, index);
+
+       if (pk.toString('hex').substring(2) == pubKey) {
+          // we found a match, now retrieve corresponding change or external pk
+          if (isInternal) {
+             address = this._getExternalAddressByIndex(index);
+             pk = this._getPubkeyByAddress(address, index);
+             return pk.toString('hex').substring(2);
+          }
+          address = this._getInternalAddressByIndex(index);
+          pk = this._getPubkeyByAddress(address, index);
+          return pk.toString('hex').substring(2);
+       }
+
+    }
+    alert("Unable to find sibling pub key for given pub key : ", pubKey);
+    return "";
+
+  }
+
   generateSecretHashPreImage(pubKey: string, forFundingTx = 0): string {
 
     // need to find address based on the pub key we have 
